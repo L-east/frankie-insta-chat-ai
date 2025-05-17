@@ -1,9 +1,11 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
+import { useAuthStore } from "@/store/authStore";
 
 export interface PersonaDeploymentData {
   persona_id: string;
   scope: string;
+  mode: string;
   custom_prompt?: string;
   tone_strength?: number;
   flag_keywords?: string;
@@ -11,63 +13,54 @@ export interface PersonaDeploymentData {
   time_limit?: number;
   message_count?: number;
   auto_stop?: boolean;
-  mode: string;
 }
 
-export const deployPersona = async (deploymentData: PersonaDeploymentData) => {
-  try {
-    const { data, error } = await supabase
-      .from('persona_deployments')
-      .insert(deploymentData)
-      .select()
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    // Update the user's free agents used count
-    await supabase.rpc('increment_agents_used');
-
-    return data;
-  } catch (error) {
-    console.error('Error deploying persona:', error);
-    throw error;
+export const createPersonaDeployment = async (deploymentData: PersonaDeploymentData) => {
+  const user = useAuthStore.getState().getUser();
+  
+  if (!user) {
+    throw new Error("User must be authenticated to create a persona deployment");
   }
+
+  const dataWithUserId = {
+    ...deploymentData,
+    user_id: user.id
+  };
+
+  const { data, error } = await supabase
+    .from('persona_deployments')
+    .insert(dataWithUserId);
+
+  if (error) throw error;
+  return data;
 };
 
-export const getUserPersonaDeployments = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('persona_deployments')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      throw error;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Error fetching persona deployments:', error);
-    throw error;
+export const getUserDeployments = async () => {
+  const user = useAuthStore.getState().getUser();
+  
+  if (!user) {
+    throw new Error("User must be authenticated to get deployments");
   }
+
+  const { data, error } = await supabase
+    .from('persona_deployments')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return data;
 };
 
-export const getUserAgentsUsage = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('free_agents_used, free_agents_total, free_expiry_date, is_pro')
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Error fetching user agents usage:', error);
-    throw error;
+export const incrementAgentUsed = async () => {
+  const user = useAuthStore.getState().getUser();
+  
+  if (!user) {
+    throw new Error("User must be authenticated to increment agent usage");
   }
+
+  const { error } = await supabase.rpc('increment_agents_used', { user_id: user.id });
+
+  if (error) throw error;
+  return true;
 };

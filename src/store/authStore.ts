@@ -12,15 +12,28 @@ interface AuthState {
   signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
+  user: User | null; // Added user property for direct access
 }
 
-export const useAuthStore = create<AuthState>((set) => {
-  // This store now acts as a wrapper around the AuthContext
-  // It maintains API compatibility with existing components
+export const useAuthStore = create<AuthState>((set, get) => {
+  // Get initial user state
+  let initialUser: User | null = null;
+  try {
+    const { user } = useAuth();
+    initialUser = user;
+  } catch (error) {
+    console.error('Error accessing auth context:', error);
+    initialUser = null;
+  }
+
   return {
+    user: initialUser,
+    
     getUser: () => {
       try {
         const { user } = useAuth();
+        // Update the store's user state
+        set({ user });
         return user;
       } catch (error) {
         console.error('Error accessing auth context:', error);

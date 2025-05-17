@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Session, User } from '@supabase/supabase-js';
+import { Session, User, Provider } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 
@@ -11,6 +11,7 @@ interface AuthContextType {
   isLoading: boolean;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithSocialProvider: (provider: Provider) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
 }
@@ -165,6 +166,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithSocialProvider = async (provider: Provider) => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+      
+      // No success toast here as the page will redirect to provider
+    } catch (error: any) {
+      toast({
+        title: "Social login failed",
+        description: error.message || `An error occurred during ${provider} login.`,
+        variant: "destructive",
+      });
+      setIsLoading(false);
+      throw error;
+    }
+  };
+
   const signOut = async () => {
     setIsLoading(true);
     try {
@@ -217,6 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     signUp,
     signIn,
+    signInWithSocialProvider,
     signOut,
     resetPassword
   };
