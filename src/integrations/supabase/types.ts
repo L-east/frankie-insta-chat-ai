@@ -9,7 +9,136 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      login_history: {
+        Row: {
+          device_info: string | null
+          id: string
+          ip_address: string | null
+          login_timestamp: string
+          user_id: string
+        }
+        Insert: {
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          login_timestamp?: string
+          user_id: string
+        }
+        Update: {
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          login_timestamp?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "login_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      persona_deployments: {
+        Row: {
+          auto_stop: boolean | null
+          created_at: string
+          custom_prompt: string | null
+          flag_action: string | null
+          flag_keywords: string | null
+          id: string
+          message_count: number | null
+          mode: string
+          persona_id: string
+          scope: string
+          time_limit: number | null
+          tone_strength: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_stop?: boolean | null
+          created_at?: string
+          custom_prompt?: string | null
+          flag_action?: string | null
+          flag_keywords?: string | null
+          id?: string
+          message_count?: number | null
+          mode: string
+          persona_id: string
+          scope: string
+          time_limit?: number | null
+          tone_strength?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_stop?: boolean | null
+          created_at?: string
+          custom_prompt?: string | null
+          flag_action?: string | null
+          flag_keywords?: string | null
+          id?: string
+          message_count?: number | null
+          mode?: string
+          persona_id?: string
+          scope?: string
+          time_limit?: number | null
+          tone_strength?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "persona_deployments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          free_agents_total: number | null
+          free_agents_used: number | null
+          free_expiry_date: string | null
+          id: string
+          is_pro: boolean | null
+          name: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          free_agents_total?: number | null
+          free_agents_used?: number | null
+          free_expiry_date?: string | null
+          id: string
+          is_pro?: boolean | null
+          name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          free_agents_total?: number | null
+          free_agents_used?: number | null
+          free_expiry_date?: string | null
+          id?: string
+          is_pro?: boolean | null
+          name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

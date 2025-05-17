@@ -1,14 +1,15 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Settings, User, X } from "lucide-react";
-import { useAuthStore } from "@/store/authStore";
+import { Search, Settings, X } from "lucide-react";
+import { useAuth } from '@/contexts/AuthContext';
 import { usePersonaStore } from "@/store/personaStore";
 import PersonaCard from './PersonaCard';
 import PersonaDetail from './PersonaDetail';
 import SettingsComponent from './Settings';
 import Auth from './Auth';
+import { getUserAgentsUsage } from '@/services/personaService';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -16,11 +17,31 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { user, profile, signOut } = useAuth();
   const { personas, selectPersona, selectedPersonaId, getSelectedPersona, deselectPersona } = usePersonaStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [agentsUsage, setAgentsUsage] = useState<any>(null);
+  
+  const isAuthenticated = !!user;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchAgentsUsage();
+    }
+  }, [isAuthenticated, profile]);
+
+  const fetchAgentsUsage = async () => {
+    try {
+      if (!user) return;
+      
+      const usageData = await getUserAgentsUsage();
+      setAgentsUsage(usageData);
+    } catch (error) {
+      console.error('Error fetching agents usage:', error);
+    }
+  };
   
   const filteredPersonas = searchTerm 
     ? personas.filter(p => 
@@ -65,26 +86,26 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       
       {/* User info / Login button */}
       <div className="p-4 border-b">
-        {isAuthenticated ? (
+        {isAuthenticated && profile ? (
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-200">
                 <img 
-                  src={user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=user"} 
-                  alt={user?.name || "User"} 
+                  src={profile?.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile?.name || user.email}`} 
+                  alt={profile?.name || "User"} 
                   className="h-full w-full object-cover"
                 />
               </div>
               <div>
-                <p className="font-medium">Hello, {user?.name}</p>
-                {!user?.isPro && (
+                <p className="font-medium">Hello, {profile?.name || user.email.split('@')[0]}</p>
+                {!profile?.is_pro && agentsUsage && (
                   <p className="text-xs text-frankieGray">
-                    {user?.freeAgentsUsed}/{user?.freeAgentsTotal} agents used
+                    {agentsUsage.free_agents_used}/{agentsUsage.free_agents_total} agents used
                   </p>
                 )}
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={logout}>Log out</Button>
+            <Button variant="ghost" size="sm" onClick={signOut}>Log out</Button>
           </div>
         ) : (
           <div className="flex justify-between items-center">
@@ -101,7 +122,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       </div>
       
       {/* Free tier banner */}
-      {!user?.isPro && (
+      {isAuthenticated && profile && !profile.is_pro && (
         <div className="bg-gray-100 p-2 text-center text-xs text-frankieGray">
           Free tier: up to 7 personas, for 7 days from signup. Upgrade anytime.
         </div>
@@ -159,7 +180,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       
       {/* Footer */}
       <div className="p-4 border-t text-center">
-        {!showSettings && !selectedPersonaId && !user?.isPro && (
+        {!showSettings && !selectedPersonaId && isAuthenticated && profile && !profile.is_pro && (
           <Button variant="outline" className="w-full" onClick={() => {
             // This would redirect to upgrade page
           }}>

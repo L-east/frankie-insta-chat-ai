@@ -4,9 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { useAuthStore } from "@/store/authStore";
-import { toast } from "@/components/ui/use-toast";
 import { Loader } from "lucide-react";
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AuthProps {
   isOpen: boolean;
@@ -20,8 +19,9 @@ const Auth = ({ isOpen, onClose }: AuthProps) => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [errors, setErrors] = useState<{email?: string; password?: string; confirmPassword?: string; name?: string}>({});
-  const { login, signup, isLoading } = useAuthStore();
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  
+  const { signIn, signUp, resetPassword, isLoading } = useAuth();
 
   const validate = () => {
     const newErrors: {email?: string; password?: string; confirmPassword?: string; name?: string} = {};
@@ -50,25 +50,14 @@ const Auth = ({ isOpen, onClose }: AuthProps) => {
     
     try {
       if (isSignup) {
-        await signup(email, password, name);
-        toast({
-          title: "Account created!",
-          description: "Welcome to Frankie AI!",
-        });
+        await signUp(email, password, name);
       } else {
-        await login(email, password);
-        toast({
-          title: "Welcome back!",
-          description: "You've successfully logged in.",
-        });
+        await signIn(email, password);
       }
       onClose();
-    } catch (error: any) {
-      toast({
-        title: "Authentication failed",
-        description: error.message,
-        variant: "destructive",
-      });
+    } catch (error) {
+      // Errors are handled in the auth context
+      console.error("Authentication error:", error);
     }
   };
 
@@ -79,18 +68,11 @@ const Auth = ({ isOpen, onClose }: AuthProps) => {
     }
     
     try {
-      // This would call the actual forgot password function from your auth store
-      toast({
-        title: "Password reset link sent",
-        description: "Please check your email to reset your password.",
-      });
+      await resetPassword(email);
       setShowForgotPassword(false);
-    } catch (error: any) {
-      toast({
-        title: "Failed to send reset link",
-        description: error.message,
-        variant: "destructive",
-      });
+    } catch (error) {
+      // Errors are handled in the auth context
+      console.error("Reset password error:", error);
     }
   };
 

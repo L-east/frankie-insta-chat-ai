@@ -1,95 +1,81 @@
 
 import { create } from 'zustand';
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  freeAgentsUsed: number;
-  freeAgentsTotal: number;
-  freeExpiryDate: Date;
-  isPro: boolean;
-}
+import { useAuth } from '@/contexts/AuthContext';
+import { User } from '@supabase/supabase-js';
 
 interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
-  isLoading: boolean;
+  getUser: () => User | null;
+  getProfile: () => any | null;
+  isAuthenticated: () => boolean;
+  isLoading: () => boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  isAuthenticated: false,
-  isLoading: false,
-  
-  login: async (email: string, password: string) => {
-    set({ isLoading: true });
-    try {
-      // Mock authentication - would be replaced with real API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      set({ 
-        isAuthenticated: true,
-        isLoading: false,
-        user: {
-          id: '1',
-          name: 'Demo User',
-          email,
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=demo',
-          freeAgentsUsed: 3,
-          freeAgentsTotal: 7,
-          freeExpiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-          isPro: false
-        }
-      });
-    } catch (error) {
-      set({ isLoading: false });
-      throw new Error('Login failed. Please check your credentials.');
+export const useAuthStore = create<AuthState>((set) => {
+  // This store now acts as a wrapper around the AuthContext
+  // It maintains API compatibility with existing components
+  return {
+    getUser: () => {
+      try {
+        const { user } = useAuth();
+        return user;
+      } catch (error) {
+        console.error('Error accessing auth context:', error);
+        return null;
+      }
+    },
+
+    getProfile: () => {
+      try {
+        const { profile } = useAuth();
+        return profile;
+      } catch (error) {
+        console.error('Error accessing auth context:', error);
+        return null;
+      }
+    },
+
+    isAuthenticated: () => {
+      try {
+        const { session } = useAuth();
+        return !!session;
+      } catch (error) {
+        console.error('Error accessing auth context:', error);
+        return false;
+      }
+    },
+
+    isLoading: () => {
+      try {
+        const { isLoading } = useAuth();
+        return isLoading;
+      } catch (error) {
+        console.error('Error accessing auth context:', error);
+        return false;
+      }
+    },
+    
+    login: async (email: string, password: string) => {
+      const { signIn } = useAuth();
+      await signIn(email, password);
+    },
+    
+    signup: async (email: string, password: string, name: string) => {
+      const { signUp } = useAuth();
+      await signUp(email, password, name);
+    },
+    
+    logout: async () => {
+      const { signOut } = useAuth();
+      await signOut();
+    },
+    
+    forgotPassword: async (email: string) => {
+      const { resetPassword } = useAuth();
+      await resetPassword(email);
     }
-  },
-  
-  signup: async (email: string, password: string, name: string) => {
-    set({ isLoading: true });
-    try {
-      // Mock signup - would be replaced with real API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      set({ 
-        isAuthenticated: true,
-        isLoading: false,
-        user: {
-          id: '1',
-          name,
-          email,
-          avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + name,
-          freeAgentsUsed: 0,
-          freeAgentsTotal: 7,
-          freeExpiryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-          isPro: false
-        }
-      });
-    } catch (error) {
-      set({ isLoading: false });
-      throw new Error('Signup failed. Please try again.');
-    }
-  },
-  
-  logout: () => {
-    set({ user: null, isAuthenticated: false });
-  },
-  
-  forgotPassword: async (email: string) => {
-    set({ isLoading: true });
-    try {
-      // Mock password reset - would be replaced with real API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      set({ isLoading: false });
-    } catch (error) {
-      set({ isLoading: false });
-      throw new Error('Password reset failed. Please try again.');
-    }
-  }
-}));
+  };
+});
