@@ -3,8 +3,16 @@ import { create } from 'zustand';
 import { useAuth } from '@/contexts/AuthContext';
 import { User } from '@supabase/supabase-js';
 
+// Define an extended user type that includes profile data
+export interface ExtendedUser extends User {
+  isPro?: boolean;
+  freeAgentsUsed?: number;
+  freeAgentsTotal?: number;
+  freeExpiryDate?: Date;
+}
+
 interface AuthState {
-  getUser: () => User | null;
+  getUser: () => ExtendedUser | null;
   getProfile: () => any | null;
   isAuthenticated: () => boolean;
   isLoading: () => boolean;
@@ -12,15 +20,21 @@ interface AuthState {
   signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
-  user: User | null; // Added user property for direct access
+  user: ExtendedUser | null; // Changed to ExtendedUser
 }
 
 export const useAuthStore = create<AuthState>((set, get) => {
   // Get initial user state
-  let initialUser: User | null = null;
+  let initialUser: ExtendedUser | null = null;
   try {
-    const { user } = useAuth();
-    initialUser = user;
+    const { user, profile } = useAuth();
+    initialUser = user ? {
+      ...user,
+      isPro: profile?.is_pro || false,
+      freeAgentsUsed: profile?.free_agents_used || 0,
+      freeAgentsTotal: profile?.free_agents_total || 7,
+      freeExpiryDate: profile?.free_expiry_date ? new Date(profile.free_expiry_date) : undefined
+    } : null;
   } catch (error) {
     console.error('Error accessing auth context:', error);
     initialUser = null;
@@ -31,10 +45,19 @@ export const useAuthStore = create<AuthState>((set, get) => {
     
     getUser: () => {
       try {
-        const { user } = useAuth();
+        const { user, profile } = useAuth();
+        // Create an extended user with profile data
+        const extendedUser = user ? {
+          ...user,
+          isPro: profile?.is_pro || false,
+          freeAgentsUsed: profile?.free_agents_used || 0,
+          freeAgentsTotal: profile?.free_agents_total || 7,
+          freeExpiryDate: profile?.free_expiry_date ? new Date(profile.free_expiry_date) : undefined
+        } : null;
+        
         // Update the store's user state
-        set({ user });
-        return user;
+        set({ user: extendedUser });
+        return extendedUser;
       } catch (error) {
         console.error('Error accessing auth context:', error);
         return null;

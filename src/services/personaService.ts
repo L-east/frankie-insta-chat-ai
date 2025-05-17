@@ -64,3 +64,20 @@ export const incrementAgentUsed = async () => {
   if (error) throw error;
   return true;
 };
+
+export const getUserAgentsUsage = async () => {
+  const user = useAuthStore.getState().getUser();
+  
+  if (!user) {
+    throw new Error("User must be authenticated to get agent usage");
+  }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('free_agents_used, free_agents_total, free_expiry_date')
+    .eq('id', user.id)
+    .single();
+
+  if (error) throw error;
+  return data;
+};
