@@ -8,7 +8,7 @@ export interface PersonaDeploymentData {
   mode: string;
   custom_prompt?: string;
   tone_strength?: number;
-  flag_keywords?: string;
+  flag_keywords?: string[];
   flag_action?: string;
   time_limit?: number;
   message_count?: number;
