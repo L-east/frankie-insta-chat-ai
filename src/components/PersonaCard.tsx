@@ -10,16 +10,17 @@ import { Lock } from "lucide-react";
 interface PersonaCardProps {
   persona: Persona;
   onClick: () => void;
+  isSelected?: boolean;
 }
 
-const PersonaCard = ({ persona, onClick }: PersonaCardProps) => {
+const PersonaCard = ({ persona, onClick, isSelected = false }: PersonaCardProps) => {
   const { isAuthenticated, user } = useAuthStore();
   const isLocked = persona.isPremium && (!isAuthenticated || (isAuthenticated && !user?.isPro));
 
   return (
     <Card 
       className={`relative overflow-hidden hover:shadow-md transition-shadow cursor-pointer border-2 ${
-        isLocked ? 'border-gray-200' : 'border-frankiePurple'
+        isLocked ? 'border-gray-200' : isSelected ? 'border-green-500' : 'border-frankiePurple'
       }`}
       onClick={onClick}
     >

@@ -22,9 +22,11 @@ export const createPersonaDeployment = async (deploymentData: PersonaDeploymentD
     throw new Error("User must be authenticated to create a persona deployment");
   }
 
+  // Convert flag_keywords array to string for database storage
   const dataWithUserId = {
     ...deploymentData,
-    user_id: user.id
+    user_id: user.id,
+    flag_keywords: deploymentData.flag_keywords ? deploymentData.flag_keywords.join(',') : undefined
   };
 
   const { data, error } = await supabase

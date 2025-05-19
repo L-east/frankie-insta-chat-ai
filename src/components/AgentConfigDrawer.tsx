@@ -1,8 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -11,7 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePersonaStore } from "@/store/personaStore";
 import { toast } from "@/components/ui/use-toast";
-import { createPersonaDeployment, PersonaDeploymentData, incrementAgentUsed } from "@/services/personaService";
+import { createPersonaDeployment, PersonaDeploymentData, incrementAgentUsed, getUserAgentsUsage } from "@/services/personaService";
 import { useAuth } from "@/contexts/AuthContext";
 import PersonaCard from './PersonaCard';
 import { Loader } from "lucide-react";
@@ -35,6 +34,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
   const { personas, selectPersona, selectedPersonaId, getSelectedPersona } = usePersonaStore();
   const { user, profile } = useAuth();
   const [isDeploying, setIsDeploying] = useState(false);
+  const [agentUsage, setAgentUsage] = useState<any>(null);
   
   // Form state
   const [scope, setScope] = useState<'current'|'all'>('current');
@@ -47,6 +47,21 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
   const [mode, setMode] = useState<'auto'|'manual'>('auto');
 
   const selectedPersona = getSelectedPersona();
+  
+  useEffect(() => {
+    if (isOpen && profile) {
+      fetchAgentUsage();
+    }
+  }, [isOpen, profile]);
+  
+  const fetchAgentUsage = async () => {
+    try {
+      const usageData = await getUserAgentsUsage();
+      setAgentUsage(usageData);
+    } catch (error) {
+      console.error('Error fetching agents usage:', error);
+    }
+  };
 
   const handleDeploy = async () => {
     if (!selectedPersona) {
@@ -72,7 +87,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
         flag_action: flagAction,
         time_limit: timeLimit ? parseInt(timeLimit) : undefined,
         message_count: messageCount ? parseInt(messageCount) : undefined,
-        auto_stop: true
+        auto_stop: true // Always enabled as per requirements
       };
       
       // Create deployment in database
@@ -247,9 +262,14 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
                   </RadioGroup>
                 </div>
                 
-                {profile && !profile.is_pro && (
+                {agentUsage && (
                   <div className="text-xs text-gray-500 mt-4">
-                    You've deployed {profile.free_agents_used}/{profile.free_agents_total} free agents.
+                    You've deployed {agentUsage.free_agents_used}/{agentUsage.free_agents_total} free agents.
+                    {agentUsage.free_expiry_date && (
+                      <span>
+                        {" "}Expires in {Math.max(0, Math.ceil((new Date(agentUsage.free_expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days.
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
