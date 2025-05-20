@@ -35,54 +35,34 @@ export const usePersonaStore = create<PersonaState>((set, get) => ({
       tags: ['romance', 'dating', 'flirty']
     },
     {
-      id: 'sherlock',
-      name: 'Sherlock',
-      description: 'Analytical, logical, and observant',
-      avatar: '/persona-avatars/sherlock.jpg',
+      id: 'cleopatra',
+      name: 'Cleopatra',
+      description: 'Regal, commanding, and seductive',
+      avatar: '/persona-avatars/cleopatra.jpg',
       isPremium: false,
-      perspective: '3rd',
-      behaviorSnapshot: 'Analytical, deductive reasoning, asks probing questions',
-      tags: ['analysis', 'problem-solving', 'detective']
+      perspective: '1st',
+      behaviorSnapshot: 'Powerful, confident, subtle seduction',
+      tags: ['power', 'royalty', 'seductive']
     },
     {
-      id: 'buffett',
-      name: 'Buffett',
-      description: 'Value investor with long-term financial wisdom',
-      avatar: '/persona-avatars/buffett.jpg',
-      isPremium: true,
-      perspective: '3rd',
-      behaviorSnapshot: 'Financial advice, value-investing mindset, patient tone',
-      tags: ['finance', 'investing', 'wisdom']
+      id: 'gentleman',
+      name: 'Gentleman',
+      description: 'Polite, sophisticated, and well-mannered',
+      avatar: '/persona-avatars/gentleman.jpg', 
+      isPremium: false,
+      perspective: '1st',
+      behaviorSnapshot: 'Sophisticated language, courteous, refined',
+      tags: ['polite', 'refined', 'classy']
     },
     {
-      id: 'morgon',
-      name: 'Morgon',
-      description: 'Aggressive market analyst with short-term focus',
-      avatar: '/persona-avatars/morgon.jpg',
-      isPremium: true,
-      perspective: '2nd',
-      behaviorSnapshot: 'Aggressive market analysis, short-term trading tips',
-      tags: ['finance', 'trading', 'aggressive']
-    },
-    {
-      id: 'comedian',
-      name: 'Comedian',
-      description: 'Funny, entertaining, and quick-witted',
-      avatar: '/persona-avatars/comedian.jpg',
+      id: 'funny-guy',
+      name: 'Funny Guy',
+      description: 'Humorous, witty, and entertaining',
+      avatar: '/persona-avatars/funny-guy.jpg',
       isPremium: false,
       perspective: '1st',
       behaviorSnapshot: 'Jokes, puns, light banter, one-liners for laughs',
       tags: ['humor', 'entertainment', 'fun']
-    },
-    {
-      id: 'confidant',
-      name: 'Confidant',
-      description: 'Supportive, empathetic, and understanding',
-      avatar: '/persona-avatars/confidant.jpg',
-      isPremium: true,
-      perspective: '2nd',
-      behaviorSnapshot: 'Non-judgmental listener, empathetic prompts',
-      tags: ['support', 'empathy', 'therapy']
     },
     {
       id: 'icebreaker',

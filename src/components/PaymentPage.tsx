@@ -1,11 +1,19 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ArrowLeft, CheckCircle, CreditCard, Lock } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { useAuthStore } from '@/store/authStore';
+import { supabase } from '@/integrations/supabase/client';
+
+declare global {
+  interface Window {
+    paypal?: any;
+  }
+}
 
 interface PaymentPageProps {
   onBack: () => void;
@@ -15,76 +23,80 @@ interface PaymentPageProps {
 const PaymentPage: React.FC<PaymentPageProps> = ({ onBack, onSuccess }) => {
   const [plan, setPlan] = useState<'monthly'|'annual'>('monthly');
   const [loading, setLoading] = useState(false);
+  const [paypalLoaded, setPaypalLoaded] = useState(false);
+  const { user } = useAuthStore();
   
-  // Form state
-  const [formData, setFormData] = useState({
-    cardNumber: '',
-    cardName: '',
-    expiry: '',
-    cvc: ''
-  });
+  useEffect(() => {
+    // Load PayPal script
+    const script = document.createElement('script');
+    script.src = "https://www.paypal.com/sdk/js?client-id=test&currency=USD";
+    script.async = true;
+    script.onload = () => setPaypalLoaded(true);
+    document.body.appendChild(script);
+    
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
   
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    
-    let formattedValue = value;
-    
-    // Format card number with spaces
-    if (name === 'cardNumber') {
-      formattedValue = value.replace(/\s/g, '').replace(/(.{4})/g, '$1 ').trim().slice(0, 19);
+  useEffect(() => {
+    if (paypalLoaded && window.paypal) {
+      window.paypal.Buttons({
+        createOrder: function(data: any, actions: any) {
+          return actions.order.create({
+            purchase_units: [{
+              amount: {
+                value: plan === 'monthly' ? '9.99' : '99.99'
+              },
+              description: `Frankie AI ${plan === 'monthly' ? 'Monthly' : 'Annual'} Subscription`
+            }]
+          });
+        },
+        onApprove: async function(data: any, actions: any) {
+          setLoading(true);
+          try {
+            // Get order details
+            const orderDetails = await actions.order.capture();
+            
+            // Record transaction in Supabase
+            if (user) {
+              await supabase.from('transactions').insert({
+                user_id: user.id,
+                payment_provider: 'paypal',
+                payment_id: orderDetails.id,
+                amount: plan === 'monthly' ? 9.99 : 99.99,
+                currency: 'USD',
+                plan_type: plan,
+                status: 'completed'
+              });
+              
+              // Update user profile to pro
+              await supabase.from('profiles').update({
+                is_pro: true
+              }).eq('id', user.id);
+            }
+            
+            toast({
+              title: "Payment successful!",
+              description: `You are now subscribed to the Frankie AI ${plan === 'monthly' ? 'Monthly' : 'Annual'} Plan.`,
+            });
+            
+            onSuccess();
+          } catch (error) {
+            console.error('Payment processing error:', error);
+            toast({
+              title: "Payment processing error",
+              description: "There was an issue processing your payment. Please try again.",
+              variant: "destructive"
+            });
+          } finally {
+            setLoading(false);
+          }
+        }
+      }).render('#paypal-button-container');
     }
-    
-    // Format expiry date with slash
-    if (name === 'expiry') {
-      const expiry = value.replace(/\//g, '');
-      if (expiry.length > 2) {
-        formattedValue = expiry.slice(0, 2) + '/' + expiry.slice(2, 4);
-      } else {
-        formattedValue = expiry;
-      }
-    }
-    
-    // Format CVC to max 3 digits
-    if (name === 'cvc') {
-      formattedValue = value.slice(0, 3);
-    }
-    
-    setFormData(prev => ({
-      ...prev,
-      [name]: formattedValue
-    }));
-  };
-  
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Basic validation
-    if (!formData.cardNumber || !formData.cardName || !formData.expiry || !formData.cvc) {
-      toast({
-        title: "Missing information",
-        description: "Please fill in all payment details.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setLoading(true);
-    
-    // Simulate payment processing
-    setTimeout(() => {
-      setLoading(false);
-      
-      // Show success message
-      toast({
-        title: "Payment successful!",
-        description: `You are now subscribed to the Frankie AI ${plan === 'monthly' ? 'Monthly' : 'Annual'} Plan.`,
-      });
-      
-      // Call success callback
-      onSuccess();
-    }, 2000);
-  };
-  
+  }, [paypalLoaded, plan, user, onSuccess]);
+
   const getPrice = () => {
     return plan === 'monthly' ? '$9.99/month' : '$99.99/year';
   };
@@ -141,69 +153,20 @@ const PaymentPage: React.FC<PaymentPageProps> = ({ onBack, onSuccess }) => {
             <h3 className="font-medium">Pro Benefits:</h3>
             <div className="space-y-2">
               <BenefitItem text="Unlimited agent deployments" />
-              <BenefitItem text="Access to all premium personas" />
-              <BenefitItem text="Advanced customization options" />
-              <BenefitItem text="Priority support" />
-              <BenefitItem text="No ads or branding" />
+              <BenefitItem text="Advanced persona customization" />
+              <BenefitItem text="Extended 24-hour agent lifespan" />
+              <BenefitItem text="Background operation" />
+              <BenefitItem text="Parallel agent execution" />
             </div>
           </div>
         </div>
         
-        {/* Right column - Payment form */}
+        {/* Right column - Payment options */}
         <div>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="bg-gray-50 p-6 rounded-lg border mb-4">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold">Payment Details</h2>
-                <CreditCard className="text-gray-400" />
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="cardNumber">Card Number</Label>
-                  <Input 
-                    id="cardNumber" 
-                    name="cardNumber"
-                    placeholder="1234 5678 9012 3456" 
-                    value={formData.cardNumber}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="cardName">Cardholder Name</Label>
-                  <Input 
-                    id="cardName" 
-                    name="cardName"
-                    placeholder="John Smith" 
-                    value={formData.cardName}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="expiry">Expiry Date</Label>
-                    <Input 
-                      id="expiry" 
-                      name="expiry"
-                      placeholder="MM/YY" 
-                      value={formData.expiry}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="cvc">CVC</Label>
-                    <Input 
-                      id="cvc" 
-                      name="cvc"
-                      placeholder="123" 
-                      value={formData.cvc}
-                      onChange={handleInputChange}
-                    />
-                  </div>
-                </div>
-              </div>
+          <div className="bg-gray-50 p-6 rounded-lg border mb-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold">Payment Details</h2>
+              <CreditCard className="text-gray-400" />
             </div>
             
             <div className="border-t pt-4">
@@ -224,20 +187,14 @@ const PaymentPage: React.FC<PaymentPageProps> = ({ onBack, onSuccess }) => {
                 <span>{getPrice()}</span>
               </div>
               
-              <Button 
-                type="submit" 
-                className="w-full bg-frankiePurple hover:bg-frankiePurple-dark h-12"
-                disabled={loading}
-              >
-                {loading ? 'Processing...' : `Subscribe for ${getPrice()}`}
-              </Button>
+              <div id="paypal-button-container" className="mt-4"></div>
               
               <div className="flex items-center justify-center mt-3 text-xs text-gray-500">
                 <Lock className="h-3 w-3 mr-1" />
                 Secure payment processing
               </div>
             </div>
-          </form>
+          </div>
         </div>
       </div>
     </div>

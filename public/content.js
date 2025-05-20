@@ -41,8 +41,8 @@ function observeChatWindows() {
 
 // Inject deploy buttons into chat windows
 function injectDeployButtons() {
-  // Find all chat input areas - this selector needs to be updated based on Instagram's structure
-  const chatInputs = document.querySelectorAll('form textarea');
+  // Find all chat input areas specifically for message textboxes using the provided selector
+  const chatInputs = document.querySelectorAll('div[contenteditable="true"][role="textbox"][aria-label="Message"]');
   
   chatInputs.forEach(input => {
     const parentForm = input.closest('form');

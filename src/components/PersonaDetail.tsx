@@ -6,13 +6,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, Loader } from "lucide-react";
 import { Persona } from "@/store/personaStore";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "@/components/ui/use-toast";
+import { createPersonaDeployment, incrementAgentUsed } from '@/services/personaService';
 
 interface PersonaDetailProps {
   persona: Persona;
@@ -25,17 +25,13 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
   const [isDeploying, setIsDeploying] = useState(false);
   
   // Form state
-  const [scope, setScope] = useState<'current'|'all'|'bulk'>('current');
-  const [customPrompt, setCustomPrompt] = useState('');
-  const [toneStrength, setToneStrength] = useState([5]);
-  const [flagKeywords, setFlagKeywords] = useState('');
-  const [flagAction, setFlagAction] = useState('pause');
-  const [timeLimit, setTimeLimit] = useState('');
-  const [messageCount, setMessageCount] = useState('');
-  const [autoStop, setAutoStop] = useState(true);
+  const [customInstructions, setCustomInstructions] = useState('');
+  const [timeLimit, setTimeLimit] = useState('30');
+  const [timeLimitUnit, setTimeLimitUnit] = useState<'minutes' | 'hours'>('minutes');
+  const [messageCount, setMessageCount] = useState('10');
   const [mode, setMode] = useState<'auto'|'manual'>('auto');
 
-  const handleDeploy = () => {
+  const handleDeploy = async () => {
     if (!isAuthenticated) {
       onOpenAuth();
       return;
@@ -43,21 +39,63 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
     
     setIsDeploying(true);
     
-    // Mock deployment
-    setTimeout(() => {
-      setIsDeploying(false);
+    try {
+      // Convert time limit to minutes
+      const timeLimitInMinutes = timeLimitUnit === 'hours' 
+        ? parseInt(timeLimit) * 60 
+        : parseInt(timeLimit);
+      
+      // Create deployment data
+      const deploymentData = {
+        persona_id: persona.id,
+        scope: 'current',
+        mode,
+        custom_prompt: customInstructions,
+        time_limit: timeLimitInMinutes,
+        message_count: parseInt(messageCount),
+        flag_keywords: [], // Empty since we're not using this for now
+        flag_action: 'pause'
+      };
+      
+      // Create persona deployment in backend
+      await createPersonaDeployment(deploymentData);
+      
+      // Increment agent usage
+      await incrementAgentUsed();
+      
+      // Send message to content script to deploy agent
+      if (window.parent) {
+        window.parent.postMessage({
+          action: 'deployAgent',
+          config: {
+            ...deploymentData,
+            persona,
+            chatData: { chatId: 'current-chat' } // This will be replaced by the content script
+          }
+        }, '*');
+      }
+      
       toast({
         title: `${persona.name} deployed!`,
         description: "Your AI agent is now active in the chat.",
       });
-    }, 2000);
+    } catch (error) {
+      console.error('Error deploying agent:', error);
+      toast({
+        title: "Deployment failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeploying(false);
+    }
   };
 
-  const isDeployDisabled = () => {
-    if (!isAuthenticated) return false; // We'll show "Log in to Deploy" instead
-    if (user?.isPro) return false; // Pro users have unlimited deploys
-    if ((user?.freeAgentsUsed || 0) >= (user?.freeAgentsTotal || 0)) return true; // Free tier exhausted
-    return false;
+  const getMaxTimeLimit = () => {
+    if (!user?.isPro) {
+      return 30; // 30 minutes for free users
+    }
+    return timeLimitUnit === 'hours' ? 24 : 24 * 60; // 24 hours for pro users
   };
 
   return (
@@ -88,92 +126,22 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
 
       {/* Configuration sections */}
       <div className="space-y-4">
+        {/* Instructions */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Scope of Task</CardTitle>
+            <CardTitle className="text-lg">Instructions for {persona.name}</CardTitle>
           </CardHeader>
           <CardContent>
-            <RadioGroup value={scope} onValueChange={(value) => setScope(value as 'current'|'all'|'bulk')}>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="current" id="current" />
-                <Label htmlFor="current">Current Chat (only active thread)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="all" id="all" />
-                <Label htmlFor="all">All Chats on Page (scan every open conversation)</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="bulk" id="bulk" disabled={!user?.isPro} />
-                <Label htmlFor="bulk" className={!user?.isPro ? "text-gray-400" : ""}>
-                  Bulk Upload Contacts (CSV input)
-                  {!user?.isPro && <span className="ml-2 text-xs">(Pro feature)</span>}
-                </Label>
-              </div>
-            </RadioGroup>
+            <Textarea 
+              placeholder={`Add custom instructions for ${persona.name}...`}
+              value={customInstructions}
+              onChange={(e) => setCustomInstructions(e.target.value)}
+              className="min-h-[100px]"
+            />
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Behavior Rules</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="custom-prompt">Custom Prompt (optional)</Label>
-              <Textarea 
-                id="custom-prompt" 
-                placeholder="Add a custom opening message or specific instructions..."
-                value={customPrompt}
-                onChange={(e) => setCustomPrompt(e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <Label htmlFor="tone-strength">Tone Strength</Label>
-                <span className="text-sm font-medium">{toneStrength[0]}/10</span>
-              </div>
-              <Slider 
-                id="tone-strength" 
-                value={toneStrength} 
-                min={1} 
-                max={10} 
-                step={1}
-                onValueChange={setToneStrength} 
-              />
-              <div className="flex justify-between text-xs text-frankieGray">
-                <span>Subtle</span>
-                <span>Strong</span>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
-                <Label htmlFor="flag-keywords">Flag Keywords</Label>
-                <Input 
-                  id="flag-keywords" 
-                  placeholder="comma, separated, words"
-                  value={flagKeywords}
-                  onChange={(e) => setFlagKeywords(e.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="flag-action">On Flag</Label>
-                <Select value={flagAction} onValueChange={setFlagAction}>
-                  <SelectTrigger id="flag-action">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pause">Pause</SelectItem>
-                    <SelectItem value="notify">Notify</SelectItem>
-                    <SelectItem value="continue">Continue</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+        {/* Session Controls */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Session Controls</CardTitle>
@@ -181,14 +149,36 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="time-limit">Time Limit (minutes)</Label>
-                <Input 
-                  id="time-limit" 
-                  placeholder="e.g. 30"
-                  type="number" 
-                  value={timeLimit}
-                  onChange={(e) => setTimeLimit(e.target.value)}
-                />
+                <Label htmlFor="time-limit">Time Limit</Label>
+                <div className="flex gap-2">
+                  <Input 
+                    id="time-limit" 
+                    placeholder="e.g. 30"
+                    type="number" 
+                    value={timeLimit}
+                    onChange={(e) => setTimeLimit(e.target.value)}
+                    min="1"
+                    max={getMaxTimeLimit().toString()}
+                    className="flex-1"
+                  />
+                  {user?.isPro && (
+                    <Select 
+                      value={timeLimitUnit}
+                      onValueChange={(value: 'minutes' | 'hours') => setTimeLimitUnit(value)}
+                    >
+                      <SelectTrigger className="w-24">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="minutes">Minutes</SelectItem>
+                        <SelectItem value="hours">Hours</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+                {!user?.isPro && (
+                  <p className="text-xs text-gray-500 mt-1">Free tier: Max 30 minutes</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="message-count">Message Count</Label>
@@ -198,19 +188,9 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
                   type="number"
                   value={messageCount}
                   onChange={(e) => setMessageCount(e.target.value)}
+                  min="1"
                 />
               </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <input 
-                type="checkbox" 
-                id="auto-stop" 
-                checked={autoStop}
-                onChange={(e) => setAutoStop(e.target.checked)}
-                className="rounded border-gray-300 text-frankiePurple focus:ring-frankiePurple"
-              />
-              <Label htmlFor="auto-stop">Auto-stop on conclusion (detect "goodbye," "thanks," etc.)</Label>
             </div>
             
             <fieldset>
@@ -218,20 +198,20 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
               <RadioGroup value={mode} onValueChange={(value) => setMode(value as 'auto'|'manual')}>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="auto" id="auto" />
-                  <Label htmlFor="auto">Fully Auto (agent sends directly)</Label>
+                  <Label htmlFor="auto">Automated (agent sends automatically)</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="manual" id="manual" />
-                  <Label htmlFor="manual">Semi-Manual (agent drafts in sidebar, you click to send)</Label>
+                  <Label htmlFor="manual">Manual (agent drafts, you send)</Label>
                 </div>
               </RadioGroup>
             </fieldset>
             
             {/* Usage Counter */}
-            {isAuthenticated && !user?.isPro && (
+            {isAuthenticated && !user?.isPro && user?.freeExpiryDate && (
               <div className="text-xs text-frankieGray mt-4">
                 You've deployed {user?.freeAgentsUsed}/{user?.freeAgentsTotal} free agents. 
-                Expires in {Math.ceil((user?.freeExpiryDate.getTime() || 0 - Date.now()) / (1000 * 60 * 60 * 24))} days.
+                Expires in {Math.max(0, Math.ceil((new Date(user.freeExpiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days.
               </div>
             )}
           </CardContent>
@@ -243,7 +223,7 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
         <Button variant="outline" onClick={onBack}>Cancel</Button>
         <Button 
           onClick={handleDeploy} 
-          disabled={isDeployDisabled() || isDeploying}
+          disabled={isDeploying}
           className="bg-frankiePurple hover:bg-frankiePurple-dark"
         >
           {isDeploying ? (

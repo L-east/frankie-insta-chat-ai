@@ -1,15 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, Settings, X } from "lucide-react";
+import { User, Settings, X } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { usePersonaStore } from "@/store/personaStore";
 import PersonaCard from './PersonaCard';
 import PersonaDetail from './PersonaDetail';
-import SettingsComponent from './Settings';
+import SettingsRefactored from './SettingsRefactored';
 import Auth from './Auth';
 import { getUserAgentsUsage } from '@/services/personaService';
+import { useAuthStore } from '@/store/authStore';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -17,12 +17,12 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile } = useAuth();
   const { personas, selectPersona, selectedPersonaId, getSelectedPersona, deselectPersona } = usePersonaStore();
-  const [searchTerm, setSearchTerm] = useState('');
   const [showSettings, setShowSettings] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [agentsUsage, setAgentsUsage] = useState<any>(null);
+  const { signOut } = useAuth();
   
   const isAuthenticated = !!user;
 
@@ -42,13 +42,6 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       console.error('Error fetching agents usage:', error);
     }
   };
-  
-  const filteredPersonas = searchTerm 
-    ? personas.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
-    : personas;
     
   const selectedPersona = getSelectedPersona();
   
@@ -59,10 +52,31 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
   return (
     <div className={`fixed right-0 top-0 h-full w-80 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col z-50`}>
-      {/* Header */}
-      <div className="p-4 border-b flex justify-between items-center">
-        {!selectedPersonaId && !showSettings ? (
-          <>
+      {/* Header with settings and logout */}
+      <div className="p-3 border-b flex justify-between items-center">
+        <div className="flex items-center space-x-2">
+          {isAuthenticated ? (
+            <>
+              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setShowAuth(true)}>
+                <User size={18} />
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setShowSettings(true)}>
+                <Settings size={18} />
+              </Button>
+            </>
+          ) : (
+            <Button 
+              size="sm" 
+              className="bg-frankiePurple hover:bg-frankiePurple-dark"
+              onClick={() => setShowAuth(true)}
+            >
+              Log in
+            </Button>
+          )}
+        </div>
+        
+        <div className="flex items-center">
+          {!selectedPersonaId && !showSettings ? (
             <div className="flex items-center">
               <img 
                 src="/placeholder.svg" 
@@ -71,22 +85,16 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               />
               <h1 className="text-lg font-bold">Frankie AI</h1>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X size={18} />
-            </Button>
-          </>
-        ) : (
-          <div className="w-full">
-            <Button variant="ghost" size="icon" onClick={onClose} className="absolute right-4">
-              <X size={18} />
-            </Button>
-          </div>
-        )}
+          ) : null}
+          <Button variant="ghost" size="icon" onClick={onClose} className="ml-2">
+            <X size={18} />
+          </Button>
+        </div>
       </div>
       
       {/* User info / Login button */}
-      <div className="p-4 border-b">
-        {isAuthenticated && profile ? (
+      {isAuthenticated && profile && !showAuth && !showSettings && (
+        <div className="p-4 border-b">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-3">
               <div className="h-8 w-8 rounded-full overflow-hidden bg-gray-200">
@@ -105,21 +113,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 )}
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={signOut}>Log out</Button>
           </div>
-        ) : (
-          <div className="flex justify-between items-center">
-            <p className="text-frankieGray">Welcome to Frankie AI!</p>
-            <Button 
-              size="sm" 
-              className="bg-frankiePurple hover:bg-frankiePurple-dark"
-              onClick={() => setShowAuth(true)}
-            >
-              Log in
-            </Button>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
       
       {/* Free tier banner */}
       {isAuthenticated && profile && !profile.is_pro && (
@@ -131,7 +127,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       {/* Main content */}
       <div className="flex-1 overflow-y-auto p-4">
         {showSettings ? (
-          <SettingsComponent onBack={handleBackToPersonas} />
+          <SettingsRefactored onBack={handleBackToPersonas} />
         ) : selectedPersonaId ? (
           selectedPersona && (
             <PersonaDetail 
@@ -142,25 +138,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           )
         ) : (
           <>
-            {/* Search and settings */}
-            <div className="flex mb-4 gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                <Input
-                  placeholder="Search personas..."
-                  className="pl-8"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <Button variant="outline" size="icon" onClick={() => setShowSettings(true)}>
-                <Settings size={16} />
-              </Button>
-            </div>
-
             {/* Personas grid */}
             <div className="grid grid-cols-2 gap-4">
-              {filteredPersonas.map((persona) => (
+              {personas.map((persona) => (
                 <PersonaCard 
                   key={persona.id}
                   persona={persona}
@@ -168,12 +148,6 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 />
               ))}
             </div>
-            
-            {filteredPersonas.length === 0 && (
-              <div className="text-center py-10">
-                <p className="text-frankieGray">No personas match your search</p>
-              </div>
-            )}
           </>
         )}
       </div>

@@ -5,149 +5,129 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Frankie AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     body {
-      width: 300px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      padding: 16px;
+      font-family: 'Inter', sans-serif;
+      width: 320px;
       margin: 0;
+      padding: 0;
+      color: #333;
     }
-    
+    .container {
+      padding: 16px;
+    }
     .header {
       display: flex;
       align-items: center;
       margin-bottom: 16px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid #eee;
     }
-    
     .logo {
       width: 32px;
       height: 32px;
       margin-right: 8px;
     }
-    
-    h1 {
-      margin: 0;
+    .title {
       font-size: 18px;
-      color: #9747FF;
+      font-weight: 700;
+      margin: 0;
     }
-    
-    .status {
-      background-color: #f5f5f5;
-      padding: 12px;
-      border-radius: 8px;
-      margin-bottom: 16px;
-    }
-    
-    .status-indicator {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      margin-right: 6px;
-    }
-    
-    .status-indicator.active {
-      background-color: #4CAF50;
-    }
-    
-    .status-indicator.inactive {
-      background-color: #F44336;
-    }
-    
-    .actions {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    
-    button {
+    .button {
       background-color: #9747FF;
       color: white;
       border: none;
       border-radius: 4px;
       padding: 8px 12px;
-      font-size: 14px;
+      font-weight: 600;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      transition: background-color 0.2s;
+      width: 100%;
     }
-    
-    button:hover {
+    .button:hover {
       background-color: #8035E0;
     }
-    
-    button.secondary {
-      background-color: white;
-      color: #9747FF;
-      border: 1px solid #9747FF;
+    .status {
+      margin-top: 16px;
+      font-size: 14px;
+      padding: 12px;
+      border-radius: 4px;
+      background-color: #f5f5f5;
     }
-    
-    button.secondary:hover {
-      background-color: #f9f5ff;
-    }
-    
-    .login-container {
+    .agents-list {
       margin-top: 16px;
     }
-    
-    input {
-      width: 100%;
-      padding: 8px;
-      margin-bottom: 8px;
-      border: 1px solid #ddd;
+    .agent {
+      padding: 12px;
+      border: 1px solid #eee;
       border-radius: 4px;
+      margin-bottom: 8px;
     }
-    
+    .agent-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .agent-name {
+      font-weight: 600;
+    }
+    .agent-badge {
+      font-size: 12px;
+      padding: 2px 6px;
+      border-radius: 12px;
+      background-color: #9747FF;
+      color: white;
+    }
+    .agent-info {
+      font-size: 12px;
+      color: #666;
+    }
     .footer {
       margin-top: 16px;
-      text-align: center;
       font-size: 12px;
-      color: #888;
+      color: #999;
+      text-align: center;
+    }
+    .separator {
+      border-top: 1px solid #eee;
+      margin: 16px 0;
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <img src="assets/icon32.png" alt="Frankie AI Logo" class="logo">
-    <h1>Frankie AI for Instagram</h1>
-  </div>
-  
-  <div id="content">
-    <div class="status">
-      <span class="status-indicator active"></span>
-      <span id="status-text">Extension is active</span>
+  <div class="container">
+    <div class="header">
+      <img src="assets/icon48.png" alt="Frankie AI Logo" class="logo">
+      <h1 class="title">Frankie AI</h1>
     </div>
     
-    <div id="not-logged-in" style="display: none;">
-      <p>Log in to your Frankie AI account to deploy agents:</p>
-      <div class="actions">
-        <button id="login-button">Log In</button>
-        <button id="signup-button" class="secondary">Sign Up</button>
+    <div id="not-instagram" style="display: none;">
+      <div class="status">
+        Please navigate to Instagram to use Frankie AI. Our extension works on Instagram message pages.
       </div>
+      <button class="button" id="open-instagram">Open Instagram</button>
+    </div>
+    
+    <div id="instagram-found" style="display: none;">
+      <div class="status">
+        Frankie AI is ready to use on this page. Click "Open Dashboard" to manage your AI agents.
+      </div>
+      <button class="button" id="open-dashboard">Open Dashboard</button>
       
-      <div id="login-form" class="login-container" style="display: none;">
-        <input type="email" id="email" placeholder="Email">
-        <input type="password" id="password" placeholder="Password">
-        <button id="submit-login">Log In</button>
+      <div class="separator"></div>
+      
+      <div id="active-agents" style="display: none;">
+        <h3 style="margin-top: 0;">Active Agents</h3>
+        <div class="agents-list" id="agents-list">
+          <!-- Agents will be populated here -->
+        </div>
       </div>
     </div>
     
-    <div id="logged-in" style="display: none;">
-      <p>You're logged in as <span id="user-email"></span></p>
-      <div class="actions">
-        <button id="settings-button">Settings</button>
-        <button id="logout-button" class="secondary">Log Out</button>
-      </div>
+    <div class="footer">
+      © 2025 Frankie AI - v1.0.0
     </div>
   </div>
-  
-  <div class="footer">
-    Frankie AI v1.0.0 - © 2025 All rights reserved
-  </div>
-  
+
   <script src="popup.js"></script>
 </body>
 </html>

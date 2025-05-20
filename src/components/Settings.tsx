@@ -14,7 +14,7 @@ interface SettingsProps {
 
 const Settings = ({ onBack }: SettingsProps) => {
   const { isAuthenticated, user } = useAuthStore();
-  const { profile, updateUserProfile } = useAuth();
+  const { profile } = useAuth(); // Removed updateUserProfile as it doesn't exist
   
   // State for settings
   const [notifications, setNotifications] = useState({

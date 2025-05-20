@@ -18,7 +18,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["index.html", "*.js", "*.css", "assets/*"],
+      "resources": ["index.html", "*.js", "*.css", "assets/*", "persona-avatars/*"],
       "matches": ["https://*.instagram.com/*"]
     }
   ],

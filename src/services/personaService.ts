@@ -26,7 +26,9 @@ export const createPersonaDeployment = async (deploymentData: PersonaDeploymentD
   const dataWithUserId = {
     ...deploymentData,
     user_id: user.id,
-    flag_keywords: deploymentData.flag_keywords ? deploymentData.flag_keywords.join(',') : undefined
+    flag_keywords: deploymentData.flag_keywords && deploymentData.flag_keywords.length > 0 
+      ? deploymentData.flag_keywords.join(',') 
+      : undefined
   };
 
   const { data, error } = await supabase
