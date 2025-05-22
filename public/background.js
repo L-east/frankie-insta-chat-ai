@@ -1,4 +1,3 @@
-
 // Background script for the Frankie AI extension
 
 // Listen for installation event
@@ -82,6 +81,36 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
           // Notify that we're ready
           chrome.runtime.sendMessage({ action: 'contentScriptReady', url: window.location.href });
         }
+      }
+    });
+  }
+});
+
+// Listen for extension icon click
+chrome.action.onClicked.addListener((tab) => {
+  // Check if we're on Instagram
+  if (tab.url.includes('instagram.com')) {
+    // Send message to content script to open sidebar
+    chrome.tabs.sendMessage(tab.id, { action: 'openSidebar' });
+  } else {
+    // If not on Instagram, open Instagram in a new tab
+    chrome.tabs.create({ url: 'https://www.instagram.com/direct/inbox/' });
+  }
+});
+
+// Listen for messages from popup
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'openDashboard') {
+    // Get the active tab
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const activeTab = tabs[0];
+      
+      // If we're on Instagram, open the sidebar
+      if (activeTab.url.includes('instagram.com')) {
+        chrome.tabs.sendMessage(activeTab.id, { action: 'openSidebar' });
+      } else {
+        // If not on Instagram, open Instagram in a new tab
+        chrome.tabs.create({ url: 'https://www.instagram.com/direct/inbox/' });
       }
     });
   }

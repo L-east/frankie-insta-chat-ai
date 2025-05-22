@@ -1,8 +1,8 @@
 
 {
   "manifest_version": 3,
-  "name": "Frankie AI for Instagram",
-  "version": "1.0.0",
+  "name": "FAI",
+  "version": "5.0.0",
   "description": "Deploy AI agents to handle your Instagram conversations",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": ["https://*.instagram.com/*"],

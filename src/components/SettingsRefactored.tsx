@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -34,6 +33,7 @@ const SettingsRefactored = ({ onBack }: SettingsRefactoredProps) => {
   });
 
   // State for password change
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -125,52 +125,97 @@ const SettingsRefactored = ({ onBack }: SettingsRefactoredProps) => {
                 <div className="space-y-4 mb-6">
                   <div>
                     <Label htmlFor="email">Email</Label>
-                    <div className="p-2 bg-gray-100 rounded text-gray-800" id="email">
-                      {user?.email}
-                    </div>
+                    <Input 
+                      id="email" 
+                      type="email"
+                      value={user?.email || ''}
+                      disabled
+                      className="bg-gray-100"
+                    />
                   </div>
                   <div>
                     <Label htmlFor="name">Display Name</Label>
-                    <div className="p-2 bg-gray-100 rounded text-gray-800" id="name">
-                      {profile?.name || 'Not set'}
-                    </div>
+                    <Input 
+                      id="name" 
+                      type="text"
+                      value={profile?.name || ''}
+                      onChange={(e) => {
+                        // Update display name in backend
+                        if (user) {
+                          supabase
+                            .from('profiles')
+                            .update({ name: e.target.value })
+                            .eq('id', user.id)
+                            .then(({ error }) => {
+                              if (error) {
+                                toast({
+                                  title: "Error updating name",
+                                  description: error.message,
+                                  variant: "destructive"
+                                });
+                              } else {
+                                toast({
+                                  title: "Name updated",
+                                  description: "Your display name has been updated successfully"
+                                });
+                              }
+                            });
+                        }
+                      }}
+                    />
                   </div>
                 </div>
                 
-                <form onSubmit={handlePasswordChange} className="space-y-4 mb-6 border-t border-b py-4">
-                  <h4 className="font-medium">Change Password</h4>
-                  <div>
-                    <Label htmlFor="current-password">Current Password</Label>
-                    <Input 
-                      id="current-password" 
-                      type="password"
-                      value={passwordForm.currentPassword}
-                      onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
-                      required
-                    />
+                <div className="space-y-4 mb-6 border-t border-b py-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-medium">Change Password</h4>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => setShowPasswordChange(!showPasswordChange)}
+                    >
+                      {showPasswordChange ? 'Hide' : 'Show'}
+                    </Button>
                   </div>
-                  <div>
-                    <Label htmlFor="new-password">New Password</Label>
-                    <Input 
-                      id="new-password" 
-                      type="password"
-                      value={passwordForm.newPassword}
-                      onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="confirm-password">Confirm New Password</Label>
-                    <Input 
-                      id="confirm-password" 
-                      type="password"
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
-                      required
-                    />
-                  </div>
-                  <Button type="submit">Update Password</Button>
-                </form>
+                  
+                  {showPasswordChange && (
+                    <form onSubmit={handlePasswordChange} className="space-y-4">
+                      <div>
+                        <Label htmlFor="current-password">Current Password</Label>
+                        <Input 
+                          id="current-password" 
+                          type="password"
+                          value={passwordForm.currentPassword}
+                          onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="new-password">New Password</Label>
+                        <Input 
+                          id="new-password" 
+                          type="password"
+                          value={passwordForm.newPassword}
+                          onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="confirm-password">Confirm New Password</Label>
+                        <Input 
+                          id="confirm-password" 
+                          type="password"
+                          value={passwordForm.confirmPassword}
+                          onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+                          required
+                        />
+                      </div>
+                      <Button type="submit" className="w-full">
+                        Update Password
+                      </Button>
+                    </form>
+                  )}
+                </div>
                 
                 <div className="py-4 space-y-2">
                   <div className="flex justify-between items-center">

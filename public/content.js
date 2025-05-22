@@ -1,30 +1,25 @@
-
 // Content script for the Frankie AI extension
 console.log('Frankie AI content script loaded');
 
 // State
 let activeAgents = new Map();
 let chatObservers = new Map();
+let sidebar = null;
 
 // Main function to initialize the extension
 function initializeFrankieAI() {
   console.log('Initializing Frankie AI for Instagram');
   
-  // Check if we're on the Instagram messages page
-  if (window.location.href.includes('instagram.com/direct/') || window.location.href.includes('instagram.com/messages/')) {
-    console.log('Instagram messages detected, setting up deploy buttons');
-    
-    // Set up MutationObserver to detect when chat windows appear
-    observeChatWindows();
-    
-    // Initial scan for existing chat windows
-    injectDeployButtons();
-  }
+  // Set up MutationObserver to detect when text areas appear
+  observeTextAreas();
+  
+  // Initial scan for existing text areas
+  injectDeployButtons();
 }
 
-// Observe the DOM for changes to detect new chat windows
-function observeChatWindows() {
-  const chatContainerObserver = new MutationObserver(function(mutations) {
+// Observe the DOM for changes to detect new text areas
+function observeTextAreas() {
+  const textAreaObserver = new MutationObserver(function(mutations) {
     for (const mutation of mutations) {
       if (mutation.addedNodes.length) {
         setTimeout(injectDeployButtons, 500); // Slight delay to ensure DOM is stable
@@ -32,70 +27,66 @@ function observeChatWindows() {
     }
   });
   
-  // Observe changes in the main container where chat windows appear
+  // Observe changes in the main container
   const mainContainer = document.querySelector('body');
   if (mainContainer) {
-    chatContainerObserver.observe(mainContainer, { childList: true, subtree: true });
+    textAreaObserver.observe(mainContainer, { childList: true, subtree: true });
   }
 }
 
-// Inject deploy buttons into chat windows
+// Inject deploy buttons into text areas
 function injectDeployButtons() {
-  // Find all chat input areas specifically for message textboxes using the provided selector
-  const chatInputs = document.querySelectorAll('div[contenteditable="true"][role="textbox"][aria-label="Message"]');
+  // Find all chat editors
+  const chatEditors = document.querySelectorAll('div[contenteditable="true"][role="textbox"][aria-label="Message"]');
   
-  chatInputs.forEach(input => {
-    const parentForm = input.closest('form');
-    if (parentForm && !parentForm.querySelector('.frankie-deploy-button')) {
-      console.log('Found chat input, adding deploy button');
-      
-      // Create button container
-      const buttonContainer = document.createElement('div');
-      buttonContainer.className = 'frankie-deploy-button';
-      buttonContainer.style.display = 'inline-block';
-      buttonContainer.style.marginRight = '8px';
-      
-      // Create button
-      const deployButton = document.createElement('button');
-      deployButton.className = 'frankie-button';
-      deployButton.textContent = 'Deploy Frankie';
-      deployButton.style.backgroundColor = '#9747FF';
-      deployButton.style.color = 'white';
-      deployButton.style.border = 'none';
-      deployButton.style.borderRadius = '4px';
-      deployButton.style.padding = '4px 8px';
-      deployButton.style.fontSize = '12px';
-      deployButton.style.fontWeight = 'bold';
-      deployButton.style.cursor = 'pointer';
+  chatEditors.forEach(chat => {
+    if (!chat.parentElement.querySelector('.deploy-wrapper-chat')) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'deploy-wrapper-chat';
+      wrapper.style.display = 'inline-block';
+      wrapper.style.marginTop = '10px';
+      wrapper.style.marginRight = '8px';
+
+      const button = document.createElement('button');
+      button.textContent = 'Deploy Frankie';
+      button.className = 'deploy-button';
+      button.style.backgroundColor = '#9747FF';
+      button.style.color = 'white';
+      button.style.border = 'none';
+      button.style.borderRadius = '4px';
+      button.style.padding = '4px 8px';
+      button.style.fontSize = '12px';
+      button.style.fontWeight = 'bold';
+      button.style.cursor = 'pointer';
       
       // Add message icon
       const iconSpan = document.createElement('span');
       iconSpan.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>`;
       iconSpan.style.marginRight = '4px';
-      deployButton.prepend(iconSpan);
+      button.prepend(iconSpan);
       
       // Add hover effect
-      deployButton.onmouseover = function() {
+      button.onmouseover = function() {
         this.style.backgroundColor = '#8035E0';
       }
-      deployButton.onmouseout = function() {
+      button.onmouseout = function() {
         this.style.backgroundColor = '#9747FF';
       }
-      
-      // Add click handler
-      deployButton.onclick = function(e) {
-        e.preventDefault();
-        handleDeployClick(parentForm);
-      };
-      
-      // Add button to DOM - find the right place to insert based on Instagram's structure
-      buttonContainer.appendChild(deployButton);
+
+      wrapper.appendChild(button);
       
       // Find the submit button container and insert our button before it
-      const submitContainer = parentForm.querySelector('div[role="button"]').closest('div');
+      const submitContainer = chat.parentElement.querySelector('div[role="button"]')?.closest('div');
       if (submitContainer && submitContainer.parentNode) {
-        submitContainer.parentNode.insertBefore(buttonContainer, submitContainer);
+        submitContainer.parentNode.insertBefore(wrapper, submitContainer);
+      } else {
+        chat.parentElement.appendChild(wrapper);
       }
+
+      button.addEventListener('click', (e) => {
+        e.preventDefault();
+        handleDeployClick(chat.parentElement);
+      });
     }
   });
 }
@@ -119,7 +110,7 @@ function handleDeployClick(chatForm) {
     participantName,
     messages
   };
-  
+  console.log(chatData);
   // Open sidebar with config
   openSidebar(chatData);
 }
@@ -165,10 +156,16 @@ function extractParticipantName() {
   return headerElement ? headerElement.textContent.trim() : 'User';
 }
 
+// Listen for messages from background script
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'openSidebar') {
+    openSidebar();
+  }
+});
+
 // Create and open the sidebar
-function openSidebar(chatData) {
+function openSidebar(chatData = null) {
   // Check if sidebar already exists
-  let sidebar = document.getElementById('frankie-sidebar');
   if (!sidebar) {
     // Create sidebar container
     sidebar = document.createElement('div');
@@ -190,22 +187,25 @@ function openSidebar(chatData) {
     iframe.style.height = '100%';
     iframe.style.border = 'none';
     iframe.src = chrome.runtime.getURL('index.html');
+    console.log('iframe');
     
     sidebar.appendChild(iframe);
     document.body.appendChild(sidebar);
     
     // Wait for iframe to load
     iframe.onload = function() {
-      // Send chat data to the iframe
-      iframe.contentWindow.postMessage({
-        action: 'openAgentConfig',
-        chatData
-      }, '*');
+      if (chatData) {
+        // Send chat data to the iframe
+        iframe.contentWindow.postMessage({
+          action: 'openAgentConfig',
+          chatData
+        }, '*');
+      }
     };
   } else {
-    // Send chat data to the iframe
+    // Send chat data to the iframe if provided
     const iframe = sidebar.querySelector('iframe');
-    if (iframe && iframe.contentWindow) {
+    if (iframe && iframe.contentWindow && chatData) {
       iframe.contentWindow.postMessage({
         action: 'openAgentConfig',
         chatData
@@ -217,7 +217,7 @@ function openSidebar(chatData) {
   setTimeout(() => {
     sidebar.style.transform = 'translateX(0)';
   }, 10);
-  
+  console.log('sidebar');
   // Add close button
   addSidebarCloseButton(sidebar);
 }
@@ -558,7 +558,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Also check periodically for new chat elements (Instagram loads dynamically)
-setInterval(injectDeployButtons, 5000);
+setInterval(() => {
+  const isMessagePage = document.querySelectorAll('div[contenteditable="true"][role="textbox"][aria-label="Message"]').length > 0;
+  if (isMessagePage) {
+    injectDeployButtons();
+  }
+}, 5000);
 
 // Initialize immediately for cases when DOMContentLoaded has already fired
 initializeFrankieAI();

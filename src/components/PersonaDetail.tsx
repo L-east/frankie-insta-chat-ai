@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,11 +31,6 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
   const [mode, setMode] = useState<'auto'|'manual'>('auto');
 
   const handleDeploy = async () => {
-    if (!isAuthenticated) {
-      onOpenAuth();
-      return;
-    }
-    
     setIsDeploying(true);
     
     try {
@@ -56,12 +50,6 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
         flag_keywords: [], // Empty since we're not using this for now
         flag_action: 'pause'
       };
-      
-      // Create persona deployment in backend
-      await createPersonaDeployment(deploymentData);
-      
-      // Increment agent usage
-      await incrementAgentUsed();
       
       // Send message to content script to deploy agent
       if (window.parent) {
@@ -113,13 +101,14 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
             />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold">{persona.name}</h2>
-              <Badge className={persona.isPremium ? "bg-amber-400 text-black" : "bg-frankiePurple"}>
-                {persona.isPremium ? "PRO" : "FREE"}
-              </Badge>
+            <h2 className="text-xl font-bold">{persona.name}</h2>
+            <div className="flex flex-wrap gap-1 mt-1">
+              {persona.tags.slice(0, 3).map((tag) => (
+                <Badge variant="outline" key={tag} className="text-xs">
+                  {tag}
+                </Badge>
+              ))}
             </div>
-            <p className="text-frankieGray text-sm">{persona.behaviorSnapshot}</p>
           </div>
         </div>
       </div>
@@ -161,24 +150,19 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
                     max={getMaxTimeLimit().toString()}
                     className="flex-1"
                   />
-                  {user?.isPro && (
-                    <Select 
-                      value={timeLimitUnit}
-                      onValueChange={(value: 'minutes' | 'hours') => setTimeLimitUnit(value)}
-                    >
-                      <SelectTrigger className="w-24">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="minutes">Minutes</SelectItem>
-                        <SelectItem value="hours">Hours</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
+                  <Select 
+                    value={timeLimitUnit}
+                    onValueChange={(value: 'minutes' | 'hours') => setTimeLimitUnit(value)}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="minutes">Minutes</SelectItem>
+                      <SelectItem value="hours">Hours</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                {!user?.isPro && (
-                  <p className="text-xs text-gray-500 mt-1">Free tier: Max 30 minutes</p>
-                )}
               </div>
               <div>
                 <Label htmlFor="message-count">Message Count</Label>
@@ -206,14 +190,6 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
                 </div>
               </RadioGroup>
             </fieldset>
-            
-            {/* Usage Counter */}
-            {isAuthenticated && !user?.isPro && user?.freeExpiryDate && (
-              <div className="text-xs text-frankieGray mt-4">
-                You've deployed {user?.freeAgentsUsed}/{user?.freeAgentsTotal} free agents. 
-                Expires in {Math.max(0, Math.ceil((new Date(user.freeExpiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days.
-              </div>
-            )}
           </CardContent>
         </Card>
       </div>
@@ -231,8 +207,6 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
               <Loader className="mr-2 h-4 w-4 animate-spin" />
               Deploying...
             </>
-          ) : !isAuthenticated ? (
-            "Log in to Deploy"
           ) : (
             "Save & Deploy"
           )}

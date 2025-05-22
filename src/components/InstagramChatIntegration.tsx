@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import DeployButton from './DeployButton';
 import AgentConfigDrawer from './AgentConfigDrawer';
@@ -11,50 +10,48 @@ const InstagramChatIntegration: React.FC = () => {
   const [currentChatData, setCurrentChatData] = useState<any>(null);
   const [activeAgentChats, setActiveAgentChats] = useState<Set<string>>(new Set());
   
-  // This function would be called by our browser extension's content script
-  // when it detects Instagram's chat interface is loaded
-  const injectDeployButtons = () => {
-    console.log('Injecting deploy buttons into Instagram chat');
-    
-    // In a real extension, we would find all chat text areas and inject our button next to them
-    // Simulated implementation:
-    // 1. Find all chat input areas
-    const chatInputs = document.querySelectorAll('.instagram-chat-input');
-    
-    // 2. Attach deploy buttons
-    chatInputs.forEach(input => {
-      // Create button container
-      const buttonContainer = document.createElement('div');
-      buttonContainer.className = 'frankie-deploy-button-container';
-      
-      // Render our React button into this container
-      // In a real extension, we would use ReactDOM.createRoot().render()
-      
-      // Insert next to input
-      input.parentElement?.insertBefore(buttonContainer, input.nextSibling);
-    });
-  };
-  
+  // Listen for messages from the content script
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.action === 'deployAgent') {
+        const { config } = event.data;
+        handleAgentDeploy(config);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
   // Handle clicking the deploy button
   const handleDeployClick = (chatElement: HTMLElement, chatId: string) => {
-    // Extract chat messages
-    const messages = extractChatMessages(chatElement);
-    
-    // Store current chat data
-    setCurrentChatData({
-      chatId,
-      messages
-    });
-    
-    // Open config drawer
-    setIsDrawerOpen(true);
+    try {
+      // Extract chat messages
+      const messages = extractChatMessages(chatElement);
+      
+      // Store current chat data
+      setCurrentChatData({
+        chatId,
+        messages
+      });
+      
+      // Open config drawer
+      setIsDrawerOpen(true);
+    } catch (error) {
+      console.error('Error handling deploy click:', error);
+      toast({
+        title: "Error",
+        description: "Failed to initialize chat. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
   
   // Handle agent deployment after configuration
-  const handleAgentDeploy = (config: any) => {
+  const handleAgentDeploy = async (config: any) => {
     try {
       // Deploy the agent
-      const agent = deployAgent(config);
+      const agent = await deployAgent(config);
       
       // Add to active chats
       setActiveAgentChats(prev => {
@@ -71,31 +68,12 @@ const InstagramChatIntegration: React.FC = () => {
       console.error('Failed to deploy agent:', error);
       toast({
         title: "Deployment Failed",
-        description: "Something went wrong. Please try again.",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive"
       });
     }
   };
   
-  // Effect to initialize the integration when the component mounts
-  useEffect(() => {
-    console.log('Instagram Chat Integration initialized');
-    
-    // In a real extension, we would:
-    // 1. Set up a MutationObserver to watch for new chat interfaces
-    // 2. Call injectDeployButtons whenever new chat interfaces are detected
-    
-    // Simulated initialization
-    setTimeout(injectDeployButtons, 1000);
-    
-    // Cleanup function
-    return () => {
-      // Remove any event listeners or observers
-    };
-  }, []);
-  
-  // This component doesn't render anything directly in the page
-  // It works by injecting elements into the Instagram interface
   return (
     <>
       <AgentConfigDrawer 

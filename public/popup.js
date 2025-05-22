@@ -1,4 +1,3 @@
-
 // Popup script for Frankie AI extension
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -19,10 +18,8 @@ document.addEventListener('DOMContentLoaded', function() {
       chrome.tabs.create({ url: 'https://www.instagram.com/direct/inbox/' });
     });
     
-    document.getElementById('open-dashboard').addEventListener('click', function() {
-      // Send message to the content script to open the dashboard
-      chrome.tabs.sendMessage(tabs[0].id, { action: 'openDashboard' });
-      window.close(); // Close the popup
+    document.getElementById('openDashboard').addEventListener('click', () => {
+      chrome.runtime.sendMessage({ action: 'openDashboard' });
     });
     
     // If on Instagram messages page, get active agents
