@@ -1,4 +1,3 @@
-
 // Content script for the Frankie AI extension
 console.log('Frankie AI content script loaded');
 
@@ -55,9 +54,15 @@ function injectDeployButtons() {
   console.log('Found', chatEditors.length, 'chat editors');
   
   chatEditors.forEach((chat, index) => {
-    console.log('Processing chat editor', index);
+    // Generate a unique ID for this chat editor if it doesn't have one
+    if (!chat.id) {
+      chat.id = `chat-editor-${Date.now()}-${index}`;
+    }
+    
+    console.log('Processing chat editor', chat.id);
+    
     if (!chat.parentElement.querySelector('.deploy-wrapper-chat')) {
-      console.log('Adding deploy button to chat editor', index);
+      console.log('Adding deploy button to chat editor', chat.id);
       const wrapper = document.createElement('div');
       wrapper.className = 'deploy-wrapper-chat';
       wrapper.style.display = 'inline-block';
@@ -96,16 +101,16 @@ function injectDeployButtons() {
       const submitContainer = chat.parentElement.querySelector('div[role="button"]')?.closest('div');
       if (submitContainer && submitContainer.parentNode) {
         submitContainer.parentNode.insertBefore(wrapper, submitContainer);
-        console.log('Button inserted successfully');
+        console.log('Button inserted successfully for chat editor', chat.id);
       } else {
         chat.parentElement.appendChild(wrapper);
-        console.log('Button appended to parent element (fallback)');
+        console.log('Button appended to parent element (fallback) for chat editor', chat.id);
       }
 
       button.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        console.log('Deploy button clicked');
+        console.log('Deploy button clicked for chat editor', chat.id);
         handleDeployClick(chat);
       });
     }
@@ -114,18 +119,18 @@ function injectDeployButtons() {
 
 // Handle deploy button click
 function handleDeployClick(chatInput) {
-  console.log('Deploy button clicked, handling click event');
+  console.log('Deploy button clicked, handling click event for chat editor', chatInput.id);
   
-  // Get chat ID - we'll use the form element as a unique identifier
-  const chatId = 'chat-' + Date.now();
+  // Use the chat editor's ID as the chat ID
+  const chatId = chatInput.id;
   
   // Extract messages from the chat window
   const messages = extractChatMessages(chatInput);
-  console.log('Extracted messages:', messages);
+  console.log('Extracted messages for chat editor', chatId, ':', messages);
   
   // Find the chat participant's name
   const participantName = extractParticipantName();
-  console.log('Participant name:', participantName);
+  console.log('Participant name for chat editor', chatId, ':', participantName);
   
   // Store chat data
   const chatData = {
@@ -317,12 +322,11 @@ function addSidebarCloseButton(sidebar) {
 function injectReplyToChat(chatId, message, typingEffect = true) {
   console.log('Injecting reply to chat:', chatId, message, typingEffect);
   return new Promise((resolve) => {
-    // Find the textarea for the specified chat
-    const chatForm = document.querySelector(`form`);
-    const chatInput = chatForm ? chatForm.querySelector('[contenteditable="true"][role="textbox"][aria-label="Message"]') : null;
+    // Find the textarea for the specified chat using the chat ID
+    const chatInput = document.getElementById(chatId);
     
     if (chatInput) {
-      console.log('Found chat input, injecting text');
+      console.log('Found chat input for chat ID:', chatId, 'injecting text');
       
       if (typingEffect) {
         // Simulate typing effect
@@ -342,16 +346,19 @@ function injectReplyToChat(chatId, message, typingEffect = true) {
             i++;
           } else {
             clearInterval(typeInterval);
-            console.log('Finished typing effect');
+            console.log('Finished typing effect for chat ID:', chatId);
             
             // If auto mode, trigger submit after typing
-            if (activeAgents.get(chatId)?.config.mode === 'auto') {
+            const agentInstance = Array.from(activeAgents.values())
+              .find(agent => agent.chatId === chatId);
+              
+            if (agentInstance?.config.mode === 'auto') {
               setTimeout(() => {
                 // Find and click the send button
-                const sendButton = chatForm.querySelector('[type="submit"]');
+                const sendButton = chatInput.parentElement.querySelector('[type="submit"]');
                 if (sendButton) {
                   sendButton.click();
-                  console.log('Message sent automatically');
+                  console.log('Message sent automatically for chat ID:', chatId);
                 }
               }, 500);
             }
@@ -366,7 +373,7 @@ function injectReplyToChat(chatId, message, typingEffect = true) {
         // Trigger input event to update Instagram's internal state
         const inputEvent = new Event('input', { bubbles: true });
         chatInput.dispatchEvent(inputEvent);
-        console.log('Text injected without typing effect');
+        console.log('Text injected without typing effect for chat ID:', chatId);
         
         resolve();
       }
@@ -399,13 +406,14 @@ function deployAgent(config) {
   console.log('Deploying agent with config:', config);
   
   const agentId = `agent-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+  const chatId = config.chatData.chatId;
   
   let timeoutId;
   let messagesSent = 0;
   let isWaitingForReply = false;
   
   // Setup chat message observer
-  setupChatObserver(config.chatData.chatId);
+  setupChatObserver(chatId);
   
   const processChat = async () => {
     if (isWaitingForReply) return;
@@ -431,7 +439,7 @@ function deployAgent(config) {
       
       // For auto mode, inject the response with typing effect
       if (config.mode === 'auto') {
-        await injectReplyToChat(config.chatData.chatId, response, true);
+        await injectReplyToChat(chatId, response, true);
         messagesSent++;
         
         // Simulate waiting for reply before sending next message
@@ -442,23 +450,34 @@ function deployAgent(config) {
       } 
       // For manual mode, just inject the text without sending
       else {
-        await injectReplyToChat(config.chatData.chatId, response, false);
+        await injectReplyToChat(chatId, response, false);
       }
     } catch (error) {
       console.error('Error generating AI response:', error);
     }
   };
   
-  const stopAgent = () => {
+  const stopAgent = async () => {
     if (timeoutId) {
       clearTimeout(timeoutId);
     }
     
     // Remove chat observer
-    const observer = chatObservers.get(config.chatData.chatId);
+    const observer = chatObservers.get(chatId);
     if (observer) {
       observer.disconnect();
-      chatObservers.delete(config.chatData.chatId);
+      chatObservers.delete(chatId);
+    }
+    
+    // Notify backend to end conversation
+    try {
+      await fetch('http://localhost:5000/end-conversation', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ chat_id: chatId })
+      });
+    } catch (error) {
+      console.error('Error ending conversation:', error);
     }
     
     activeAgents.delete(agentId);
@@ -474,7 +493,8 @@ function deployAgent(config) {
     status: 'active',
     startTime,
     messagesSent,
-    stop: stopAgent
+    stop: stopAgent,
+    chatId
   };
   
   // Set up time limit if specified
@@ -576,32 +596,39 @@ async function processChat(agentInstance) {
   }
 }
 
-// Simulate LLM API call (this would be replaced by a real API call to your backend)
+// Simulate LLM API call
 async function generateAIResponse(config) {
   console.log('Generating response for:', config);
   
   try {
-    // In a real implementation, this would make an API call to a backend
-    // that would then call Gemini API
-    const apiUrl = 'http://localhost:5000/process-text'; // Adjust URL based on your local backend
+    const apiUrl = 'http://localhost:5000/process-text';
     
     const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
+        chat_id: config.chatData.chatId,
         prime_directive: config.custom_prompt || '', 
         text: JSON.stringify(config.chatData.messages),
-        persona: config.persona.id || 'default'
+        persona: {
+          id: config.persona.id || 'default',
+          name: config.persona.name || 'AI Assistant',
+          description: config.persona.description || '',
+          behaviorSnapshot: config.persona.behaviorSnapshot || ''
+        }
       })
     });
     
     if (response.ok) {
       const data = await response.json();
+      if (data.error) {
+        console.error('Error from API:', data.error);
+        throw new Error(data.error);
+      }
       return data.processed_text || "Thanks for your message! I'm here to chat whenever you're ready.";
     } else {
-      throw new Error('Failed to get response from API');
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to get response from API');
     }
   } catch (error) {
     console.error('Error calling API:', error);
