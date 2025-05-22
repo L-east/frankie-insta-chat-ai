@@ -49,10 +49,14 @@ export type Database = {
           flag_action: string | null
           flag_keywords: string | null
           id: string
+          last_activity_time: string | null
           message_count: number | null
+          messages_sent: number | null
           mode: string
           persona_id: string
           scope: string
+          start_time: string | null
+          status: string | null
           time_limit: number | null
           tone_strength: number | null
           updated_at: string
@@ -65,10 +69,14 @@ export type Database = {
           flag_action?: string | null
           flag_keywords?: string | null
           id?: string
+          last_activity_time?: string | null
           message_count?: number | null
+          messages_sent?: number | null
           mode: string
           persona_id: string
           scope: string
+          start_time?: string | null
+          status?: string | null
           time_limit?: number | null
           tone_strength?: number | null
           updated_at?: string
@@ -81,10 +89,14 @@ export type Database = {
           flag_action?: string | null
           flag_keywords?: string | null
           id?: string
+          last_activity_time?: string | null
           message_count?: number | null
+          messages_sent?: number | null
           mode?: string
           persona_id?: string
           scope?: string
+          start_time?: string | null
+          status?: string | null
           time_limit?: number | null
           tone_strength?: number | null
           updated_at?: string
@@ -108,6 +120,9 @@ export type Database = {
           free_agents_total: number | null
           free_agents_used: number | null
           free_expiry_date: string | null
+          free_messages_expiry: string | null
+          free_messages_quota: number | null
+          free_messages_used: number | null
           id: string
           is_pro: boolean | null
           name: string | null
@@ -120,6 +135,9 @@ export type Database = {
           free_agents_total?: number | null
           free_agents_used?: number | null
           free_expiry_date?: string | null
+          free_messages_expiry?: string | null
+          free_messages_quota?: number | null
+          free_messages_used?: number | null
           id: string
           is_pro?: boolean | null
           name?: string | null
@@ -132,10 +150,55 @@ export type Database = {
           free_agents_total?: number | null
           free_agents_used?: number | null
           free_expiry_date?: string | null
+          free_messages_expiry?: string | null
+          free_messages_quota?: number | null
+          free_messages_used?: number | null
           id?: string
           is_pro?: boolean | null
           name?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string | null
+          currency: string
+          expiry_date: string | null
+          id: string
+          messages_purchased: number
+          messages_used: number | null
+          payment_id: string
+          payment_provider: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          currency?: string
+          expiry_date?: string | null
+          id?: string
+          messages_purchased: number
+          messages_used?: number | null
+          payment_id: string
+          payment_provider: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          currency?: string
+          expiry_date?: string | null
+          id?: string
+          messages_purchased?: number
+          messages_used?: number | null
+          payment_id?: string
+          payment_provider?: string
+          status?: string
+          user_id?: string
         }
         Relationships: []
       }

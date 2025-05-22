@@ -1,19 +1,19 @@
 
 import React, { useEffect, useState } from 'react';
-import DeployButton from './DeployButton';
 import AgentConfigDrawer from './AgentConfigDrawer';
-import { extractChatMessages, getAllOpenChats } from '@/services/chatService';
-import { deployAgent, getActiveAgents } from '@/services/agentService';
 import { toast } from "@/components/ui/use-toast";
+import { incrementMessageUsed } from '@/services/personaService';
+import { useAuthStore } from '@/store/authStore';
 
 const InstagramChatIntegration: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [currentChatData, setCurrentChatData] = useState<any>(null);
   const [activeAgentChats, setActiveAgentChats] = useState<Set<string>>(new Set());
+  const { user } = useAuthStore();
   
   // Listen for messages from the content script
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       console.log("InstagramChatIntegration received message:", event.data);
       
       if (event.data.action === 'openAgentConfig' && event.data.chatData) {
@@ -30,6 +30,12 @@ const InstagramChatIntegration: React.FC = () => {
 
     window.addEventListener('message', handleMessage);
     console.log("InstagramChatIntegration: Message listener set up");
+    
+    // Send ready message to content script
+    if (window.parent) {
+      window.parent.postMessage({ action: 'appReady' }, '*');
+      console.log("Sent appReady message to parent");
+    }
     
     return () => {
       window.removeEventListener('message', handleMessage);
@@ -48,6 +54,11 @@ const InstagramChatIntegration: React.FC = () => {
         updated.add(config.chatData.chatId);
         return updated;
       });
+      
+      // Update message usage if user is authenticated
+      if (user) {
+        await incrementMessageUsed();
+      }
       
       // Send message back to content script
       if (window.parent) {

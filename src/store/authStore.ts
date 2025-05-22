@@ -9,6 +9,9 @@ export interface ExtendedUser extends User {
   freeAgentsUsed?: number;
   freeAgentsTotal?: number;
   freeExpiryDate?: Date;
+  freeMessagesUsed?: number;
+  freeMessagesQuota?: number;
+  freeMessagesExpiry?: Date;
 }
 
 interface AuthState {
@@ -33,7 +36,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
       isPro: profile?.is_pro || false,
       freeAgentsUsed: profile?.free_agents_used || 0,
       freeAgentsTotal: profile?.free_agents_total || 7,
-      freeExpiryDate: profile?.free_expiry_date ? new Date(profile.free_expiry_date) : undefined
+      freeExpiryDate: profile?.free_expiry_date ? new Date(profile.free_expiry_date) : undefined,
+      freeMessagesUsed: profile?.free_messages_used || 0,
+      freeMessagesQuota: profile?.free_messages_quota || 100,
+      freeMessagesExpiry: profile?.free_messages_expiry ? new Date(profile.free_messages_expiry) : undefined
     } : null;
   } catch (error) {
     console.error('Error accessing auth context:', error);
@@ -52,7 +58,10 @@ export const useAuthStore = create<AuthState>((set, get) => {
           isPro: profile?.is_pro || false,
           freeAgentsUsed: profile?.free_agents_used || 0,
           freeAgentsTotal: profile?.free_agents_total || 7,
-          freeExpiryDate: profile?.free_expiry_date ? new Date(profile.free_expiry_date) : undefined
+          freeExpiryDate: profile?.free_expiry_date ? new Date(profile.free_expiry_date) : undefined,
+          freeMessagesUsed: profile?.free_messages_used || 0,
+          freeMessagesQuota: profile?.free_messages_quota || 100,
+          freeMessagesExpiry: profile?.free_messages_expiry ? new Date(profile.free_messages_expiry) : undefined
         } : null;
         
         // Update the store's user state

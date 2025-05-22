@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,13 +6,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, Loader } from "lucide-react";
 import { Persona } from "@/store/personaStore";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "@/components/ui/use-toast";
-import { createPersonaDeployment, incrementAgentUsed } from '@/services/personaService';
+import { createPersonaDeployment, incrementAgentUsed, incrementMessageUsed } from '@/services/personaService';
 
 interface PersonaDetailProps {
   persona: Persona;
@@ -25,19 +25,57 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
   
   // Form state
   const [customInstructions, setCustomInstructions] = useState('');
-  const [timeLimit, setTimeLimit] = useState('30');
-  const [timeLimitUnit, setTimeLimitUnit] = useState<'minutes' | 'hours'>('minutes');
-  const [messageCount, setMessageCount] = useState('10');
+  const [timeLimit, setTimeLimit] = useState('60');
+  const [messageCount, setMessageCount] = useState('1');
   const [mode, setMode] = useState<'auto'|'manual'>('auto');
 
   const handleDeploy = async () => {
+    // Validate time limit
+    const timeLimitNum = parseInt(timeLimit || "60");
+    if (timeLimitNum > 240) {
+      toast({
+        title: "Invalid time limit",
+        description: "Time limit cannot exceed 240 minutes.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Validate message count
+    const messageCountNum = parseInt(messageCount || "1");
+    if (messageCountNum > 100) {
+      toast({
+        title: "Invalid message count",
+        description: "Message count cannot exceed 100.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsDeploying(true);
     
     try {
+      // Check if user has enough messages
+      if (user) {
+        const freeMessagesUsed = user.freeMessagesUsed || 0;
+        const freeMessagesQuota = user.freeMessagesQuota || 100;
+        
+        if (freeMessagesUsed >= freeMessagesQuota) {
+          toast({
+            title: "Message limit reached",
+            description: "You've used all your free messages. Please purchase more to continue.",
+            variant: "destructive"
+          });
+          setIsDeploying(false);
+          return;
+        }
+        
+        // Increment message usage
+        await incrementMessageUsed();
+      }
+      
       // Convert time limit to minutes
-      const timeLimitInMinutes = timeLimitUnit === 'hours' 
-        ? parseInt(timeLimit) * 60 
-        : parseInt(timeLimit);
+      const timeLimitInMinutes = timeLimitNum;
       
       // Create deployment data
       const deploymentData = {
@@ -46,10 +84,16 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
         mode,
         custom_prompt: customInstructions,
         time_limit: timeLimitInMinutes,
-        message_count: parseInt(messageCount),
+        message_count: messageCountNum,
         flag_keywords: [], // Empty since we're not using this for now
         flag_action: 'pause'
       };
+      
+      // Create deployment in database if user is logged in
+      if (user) {
+        await createPersonaDeployment(deploymentData);
+        await incrementAgentUsed();
+      }
       
       // Send message to content script to deploy agent
       if (window.parent) {
@@ -67,6 +111,11 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
         title: `${persona.name} deployed!`,
         description: "Your AI agent is now active in the chat.",
       });
+      
+      // Reset form after successful deployment
+      setCustomInstructions('');
+      setTimeLimit('60');
+      setMessageCount('1');
     } catch (error) {
       console.error('Error deploying agent:', error);
       toast({
@@ -77,13 +126,6 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
     } finally {
       setIsDeploying(false);
     }
-  };
-
-  const getMaxTimeLimit = () => {
-    if (!user?.isPro) {
-      return 30; // 30 minutes for free users
-    }
-    return timeLimitUnit === 'hours' ? 24 : 24 * 60; // 24 hours for pro users
   };
 
   return (
@@ -138,42 +180,31 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="time-limit">Time Limit</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    id="time-limit" 
-                    placeholder="e.g. 30"
-                    type="number" 
-                    value={timeLimit}
-                    onChange={(e) => setTimeLimit(e.target.value)}
-                    min="1"
-                    max={getMaxTimeLimit().toString()}
-                    className="flex-1"
-                  />
-                  <Select 
-                    value={timeLimitUnit}
-                    onValueChange={(value: 'minutes' | 'hours') => setTimeLimitUnit(value)}
-                  >
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="minutes">Minutes</SelectItem>
-                      <SelectItem value="hours">Hours</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Label htmlFor="time-limit">Time Limit (minutes)</Label>
+                <Input 
+                  id="time-limit" 
+                  placeholder="60"
+                  type="number" 
+                  value={timeLimit}
+                  onChange={(e) => setTimeLimit(e.target.value)}
+                  min="1"
+                  max="240"
+                  className="flex-1"
+                />
+                <p className="text-xs text-gray-500 mt-1">Max: 240 minutes</p>
               </div>
               <div>
                 <Label htmlFor="message-count">Message Count</Label>
                 <Input 
                   id="message-count" 
-                  placeholder="e.g. 10"
+                  placeholder="1"
                   type="number"
                   value={messageCount}
                   onChange={(e) => setMessageCount(e.target.value)}
                   min="1"
+                  max="100"
                 />
+                <p className="text-xs text-gray-500 mt-1">Max: 100 messages</p>
               </div>
             </div>
             
