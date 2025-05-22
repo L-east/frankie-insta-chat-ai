@@ -18,6 +18,4 @@ document.addEventListener('DOMContentLoaded', function() {
       });
     });
   }
-  
-  // Add event listeners for other buttons if needed
 });

@@ -106,21 +106,21 @@ function injectDeployButtons() {
         e.preventDefault();
         e.stopPropagation();
         console.log('Deploy button clicked');
-        handleDeployClick(chat.parentElement);
+        handleDeployClick(chat);
       });
     }
   });
 }
 
 // Handle deploy button click
-function handleDeployClick(chatForm) {
+function handleDeployClick(chatInput) {
   console.log('Deploy button clicked, handling click event');
   
   // Get chat ID - we'll use the form element as a unique identifier
   const chatId = 'chat-' + Date.now();
   
   // Extract messages from the chat window
-  const messages = extractChatMessages(chatForm);
+  const messages = extractChatMessages(chatInput);
   console.log('Extracted messages:', messages);
   
   // Find the chat participant's name
@@ -139,10 +139,10 @@ function handleDeployClick(chatForm) {
 }
 
 // Extract messages from chat window
-function extractChatMessages(chatForm) {
+function extractChatMessages(chatInput) {
   try {
     // Find the chat container - this selector needs to be updated based on Instagram's structure
-    const chatContainer = chatForm.closest('[role="dialog"]') || document.querySelector('main');
+    const chatContainer = chatInput.closest('[role="dialog"]') || document.querySelector('main');
     if (!chatContainer) {
       console.error('Could not find chat container');
       return [];
@@ -251,12 +251,14 @@ function openSidebar(chatData = null) {
     iframe.onload = function() {
       console.log('Iframe loaded successfully');
       if (chatData) {
-        // Send chat data to the iframe
-        console.log('Sending chat data to iframe');
-        iframe.contentWindow.postMessage({
-          action: 'openAgentConfig',
-          chatData
-        }, '*');
+        // Give the iframe some time to initialize React app before sending message
+        setTimeout(() => {
+          console.log('Sending chat data to iframe');
+          iframe.contentWindow.postMessage({
+            action: 'openAgentConfig',
+            chatData
+          }, '*');
+        }, 1000);
       }
     };
 
@@ -277,7 +279,7 @@ function openSidebar(chatData = null) {
     }
   }
   
-  // Show sidebar
+  // Show sidebar with a slight delay to ensure smooth animation
   setTimeout(() => {
     sidebar.style.transform = 'translateX(0)';
     console.log('Sidebar animation started');
@@ -317,19 +319,21 @@ function injectReplyToChat(chatId, message, typingEffect = true) {
   return new Promise((resolve) => {
     // Find the textarea for the specified chat
     const chatForm = document.querySelector(`form`);
-    const chatInput = chatForm ? chatForm.querySelector('textarea') : null;
+    const chatInput = chatForm ? chatForm.querySelector('[contenteditable="true"][role="textbox"][aria-label="Message"]') : null;
     
-    if (chatInput && chatInput instanceof HTMLTextAreaElement) {
+    if (chatInput) {
       console.log('Found chat input, injecting text');
+      
       if (typingEffect) {
         // Simulate typing effect
         chatInput.focus();
-        chatInput.value = '';
+        chatInput.innerHTML = '';
         
         let i = 0;
         const typeInterval = setInterval(() => {
           if (i < message.length) {
-            chatInput.value += message[i];
+            // Use execCommand for contenteditable divs
+            document.execCommand('insertText', false, message[i]);
             
             // Trigger input event to update Instagram's internal state
             const inputEvent = new Event('input', { bubbles: true });
@@ -357,7 +361,7 @@ function injectReplyToChat(chatId, message, typingEffect = true) {
         }, 20); // Speed of typing effect
       } else {
         // Set the value directly
-        chatInput.value = message;
+        chatInput.innerHTML = message;
         
         // Trigger input event to update Instagram's internal state
         const inputEvent = new Event('input', { bubbles: true });
@@ -546,7 +550,7 @@ async function processChat(agentInstance) {
   
   // Extract latest messages
   const chatForm = document.querySelector('form');
-  const messages = extractChatMessages(chatForm);
+  const messages = extractChatMessages(chatForm.querySelector('[contenteditable="true"][role="textbox"][aria-label="Message"]'));
   
   // Update agent's messages
   agentInstance.config.chatData.messages = messages;
@@ -576,40 +580,48 @@ async function processChat(agentInstance) {
 async function generateAIResponse(config) {
   console.log('Generating response for:', config);
   
-  // In a real implementation, this would make an API call to a backend
-  // that would then call Gemini API
-  
-  // Simulate API delay
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Create a response based on persona
-  let response = '';
-  
-  switch (config.persona.id) {
-    case 'casanova':
-      response = "Hey there! I couldn't help but notice your message. How's your day going? 💫";
-      break;
-    case 'cleopatra':
-      response = "I admire your attention to detail. Let's continue this fascinating dialogue.";
-      break;
-    case 'gentleman':
-      response = "It's a pleasure to chat with you. Perhaps we could discuss this topic further sometime?";
-      break;
-    case 'funny-guy':
-      response = "Why don't scientists trust atoms? Because they make up everything! 😂";
-      break;
-    case 'icebreaker':
-      response = "So, what's the most exciting thing that happened to you this week?";
-      break;
-    default:
-      response = "Thanks for your message! I'm here to chat whenever you're ready.";
+  try {
+    // In a real implementation, this would make an API call to a backend
+    // that would then call Gemini API
+    const apiUrl = 'http://localhost:5000/process-text'; // Adjust URL based on your local backend
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        prime_directive: config.custom_prompt || '', 
+        text: JSON.stringify(config.chatData.messages),
+        persona: config.persona.id || 'default'
+      })
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.processed_text || "Thanks for your message! I'm here to chat whenever you're ready.";
+    } else {
+      throw new Error('Failed to get response from API');
+    }
+  } catch (error) {
+    console.error('Error calling API:', error);
+    
+    // Fallback responses based on persona if API fails
+    switch (config.persona.id) {
+      case 'casanova':
+        return "Hey there! I couldn't help but notice your message. How's your day going? 💫";
+      case 'cleopatra':
+        return "I admire your attention to detail. Let's continue this fascinating dialogue.";
+      case 'gentleman':
+        return "It's a pleasure to chat with you. Perhaps we could discuss this topic further sometime?";
+      case 'funny-guy':
+        return "Why don't scientists trust atoms? Because they make up everything! 😂";
+      case 'icebreaker':
+        return "So, what's the most exciting thing that happened to you this week?";
+      default:
+        return "Thanks for your message! I'm here to chat whenever you're ready.";
+    }
   }
-  
-  if (config.custom_prompt) {
-    response += " (Following your custom instructions)";
-  }
-  
-  return response;
 }
 
 // Initialize when the page is loaded

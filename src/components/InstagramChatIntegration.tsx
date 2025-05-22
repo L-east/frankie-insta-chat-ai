@@ -16,7 +16,7 @@ const InstagramChatIntegration: React.FC = () => {
     const handleMessage = (event: MessageEvent) => {
       console.log("InstagramChatIntegration received message:", event.data);
       
-      if (event.data.action === 'openAgentConfig') {
+      if (event.data.action === 'openAgentConfig' && event.data.chatData) {
         const { chatData } = event.data;
         console.log("Opening agent config with chat data:", chatData);
         

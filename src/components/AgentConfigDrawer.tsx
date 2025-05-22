@@ -10,18 +10,15 @@ import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePersonaStore } from "@/store/personaStore";
 import { toast } from "@/components/ui/use-toast";
-import { createPersonaDeployment, PersonaDeploymentData, incrementAgentUsed, getUserAgentsUsage } from "@/services/personaService";
-import { useAuth } from "@/contexts/AuthContext";
+import { createPersonaDeployment, PersonaDeploymentData, incrementAgentUsed, getUserAgentsUsage } from '@/services/personaService';
+import { useAuth } from '@/contexts/AuthContext';
 import PersonaCard from './PersonaCard';
 import { Loader } from "lucide-react";
 
 interface AgentConfigDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  chatData: {
-    chatId: string;
-    messages: any[];
-  };
+  chatData: any;
   onDeploy: (config: any) => void;
 }
 
@@ -37,11 +34,8 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
   const [agentUsage, setAgentUsage] = useState<any>(null);
   
   // Form state
-  const [scope, setScope] = useState<'current'|'all'>('current');
   const [customPrompt, setCustomPrompt] = useState('');
   const [toneStrength, setToneStrength] = useState([5]);
-  const [flagKeywords, setFlagKeywords] = useState('');
-  const [flagAction, setFlagAction] = useState('pause');
   const [timeLimit, setTimeLimit] = useState('');
   const [messageCount, setMessageCount] = useState('');
   const [mode, setMode] = useState<'auto'|'manual'>('auto');
@@ -49,15 +43,17 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
   const selectedPersona = getSelectedPersona();
   
   useEffect(() => {
-    if (isOpen && profile) {
+    if (isOpen) {
       fetchAgentUsage();
     }
-  }, [isOpen, profile]);
+  }, [isOpen]);
   
   const fetchAgentUsage = async () => {
     try {
-      const usageData = await getUserAgentsUsage();
-      setAgentUsage(usageData);
+      if (user) {
+        const usageData = await getUserAgentsUsage();
+        setAgentUsage(usageData);
+      }
     } catch (error) {
       console.error('Error fetching agents usage:', error);
     }
@@ -79,22 +75,22 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
       // Prepare deployment data
       const deploymentData: PersonaDeploymentData = {
         persona_id: selectedPersona.id,
-        scope: scope,
+        scope: 'current',
         mode: mode,
         custom_prompt: customPrompt || undefined,
         tone_strength: toneStrength[0],
-        flag_keywords: flagKeywords ? flagKeywords.split(',').map(k => k.trim()) : undefined,
-        flag_action: flagAction,
+        flag_keywords: [],
+        flag_action: 'pause',
         time_limit: timeLimit ? parseInt(timeLimit) : undefined,
         message_count: messageCount ? parseInt(messageCount) : undefined,
         auto_stop: true // Always enabled as per requirements
       };
       
       // Create deployment in database
-      await createPersonaDeployment(deploymentData);
-      
-      // Increment agent usage counter
-      await incrementAgentUsed();
+      if (user) {
+        await createPersonaDeployment(deploymentData);
+        await incrementAgentUsed();
+      }
       
       // Send config to parent for handling the actual deployment
       onDeploy({
@@ -146,78 +142,15 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
 
           {/* Configuration sections */}
           <div className="space-y-6">
-            {/* Scope of Task */}
+            {/* Instructions */}
             <div className="border rounded-lg p-4">
-              <h4 className="font-medium mb-2">Scope of Task</h4>
-              <RadioGroup value={scope} onValueChange={(value) => setScope(value as 'current'|'all')}>
-                <div className="flex items-center space-x-2 mb-2">
-                  <RadioGroupItem value="current" id="current" />
-                  <Label htmlFor="current">Current Chat Only</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="all" id="all" />
-                  <Label htmlFor="all">All Chats on Page</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            
-            {/* Behavior Rules */}
-            <div className="border rounded-lg p-4">
-              <h4 className="font-medium mb-2">Behavior Rules</h4>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="custom-prompt">Custom Instructions</Label>
-                  <Textarea 
-                    id="custom-prompt" 
-                    placeholder="Add custom instructions to guide the AI..."
-                    value={customPrompt}
-                    onChange={(e) => setCustomPrompt(e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Label htmlFor="tone-strength">Tone Strength</Label>
-                    <span className="text-sm">{toneStrength[0]}/10</span>
-                  </div>
-                  <Slider 
-                    id="tone-strength" 
-                    value={toneStrength} 
-                    min={1} 
-                    max={10} 
-                    step={1}
-                    onValueChange={setToneStrength} 
-                  />
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>Subtle</span>
-                    <span>Strong</span>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="col-span-2">
-                    <Label htmlFor="flag-keywords">Flag Keywords</Label>
-                    <Input 
-                      id="flag-keywords" 
-                      placeholder="comma, separated, words"
-                      value={flagKeywords}
-                      onChange={(e) => setFlagKeywords(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="flag-action">On Flag</Label>
-                    <Select value={flagAction} onValueChange={setFlagAction}>
-                      <SelectTrigger id="flag-action">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pause">Pause</SelectItem>
-                        <SelectItem value="notify">Notify</SelectItem>
-                        <SelectItem value="continue">Continue</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+              <h4 className="font-medium mb-2">Instructions for {selectedPersona?.name || 'persona'}</h4>
+              <div className="space-y-2">
+                <Textarea 
+                  placeholder="Add custom instructions to guide the AI..."
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                />
               </div>
             </div>
             
@@ -280,8 +213,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
         <DrawerFooter>
           <Button onClick={onClose} variant="outline">Cancel</Button>
           <Button 
-            onClick={handleDeploy} 
-            disabled={isDeploying || !selectedPersonaId}
+            onClick={handleDeploy}
             className="bg-frankiePurple hover:bg-frankiePurple-dark"
           >
             {isDeploying ? (

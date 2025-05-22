@@ -5,6 +5,7 @@ import InstagramChatIntegration from './components/InstagramChatIntegration';
 import Sidebar from './components/Sidebar';
 import NotFound from './pages/NotFound';
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from '@/contexts/AuthContext';
 import './App.css';
 
 const App = () => {
@@ -41,28 +42,30 @@ const App = () => {
   }, []);
   
   return (
-    <Router>
-      <div className="App">
-        <InstagramChatIntegration />
-        <Sidebar 
-          isOpen={sidebarOpen} 
-          onClose={() => {
-            setSidebarOpen(false);
-            // Notify parent window to close sidebar if we're in an iframe
-            if (window !== window.parent) {
-              window.parent.postMessage({ action: 'closeSidebar' }, '*');
-            }
-          }}
-        />
-        <Routes>
-          <Route path="/" element={<div className="min-h-screen flex items-center justify-center">
-            <p>Frankie AI is running in sidebar mode</p>
-          </div>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </div>
-      <Toaster />
-    </Router>
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <InstagramChatIntegration />
+          <Sidebar 
+            isOpen={sidebarOpen} 
+            onClose={() => {
+              setSidebarOpen(false);
+              // Notify parent window to close sidebar if we're in an iframe
+              if (window !== window.parent) {
+                window.parent.postMessage({ action: 'closeSidebar' }, '*');
+              }
+            }}
+          />
+          <Routes>
+            <Route path="/" element={<div className="min-h-screen flex items-center justify-center">
+              <p>Frankie AI is running in sidebar mode</p>
+            </div>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </div>
+        <Toaster />
+      </Router>
+    </AuthProvider>
   );
 };
 

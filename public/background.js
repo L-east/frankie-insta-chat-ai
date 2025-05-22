@@ -74,7 +74,7 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
     if (tab.url.includes('/direct/') || tab.url.includes('/messages/')) {
       console.log('Instagram messages page detected, ensuring content script is loaded');
       
-      // Execute content script if needed (improve detection mechanism)
+      // Execute content script if needed
       chrome.scripting.executeScript({
         target: { tabId: tabId },
         function: function() {
@@ -95,7 +95,7 @@ chrome.tabs.onUpdated.addListener(function(tabId, changeInfo, tab) {
 // Listen for extension icon click
 chrome.action.onClicked.addListener((tab) => {
   // Always send message to open sidebar regardless of condition
-  if (tab.url.includes('instagram.com')) {
+  if (tab.url && tab.url.includes('instagram.com')) {
     chrome.tabs.sendMessage(tab.id, { action: 'openSidebar' }, function(response) {
       // Check for error in response
       if (chrome.runtime.lastError) {
@@ -126,7 +126,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       const activeTab = tabs[0];
       
       // Always try to open the sidebar regardless of where we are
-      if (activeTab.url.includes('instagram.com')) {
+      if (activeTab.url && activeTab.url.includes('instagram.com')) {
         chrome.tabs.sendMessage(activeTab.id, { action: 'openSidebar' }, function(response) {
           // Check for error in response
           if (chrome.runtime.lastError) {
