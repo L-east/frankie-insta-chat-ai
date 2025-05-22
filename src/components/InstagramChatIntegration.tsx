@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import DeployButton from './DeployButton';
 import AgentConfigDrawer from './AgentConfigDrawer';
@@ -13,45 +14,33 @@ const InstagramChatIntegration: React.FC = () => {
   // Listen for messages from the content script
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data.action === 'deployAgent') {
-        const { config } = event.data;
-        handleAgentDeploy(config);
+      console.log("InstagramChatIntegration received message:", event.data);
+      
+      if (event.data.action === 'openAgentConfig') {
+        const { chatData } = event.data;
+        console.log("Opening agent config with chat data:", chatData);
+        
+        // Store current chat data
+        setCurrentChatData(chatData);
+        
+        // Open config drawer
+        setIsDrawerOpen(true);
       }
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    console.log("InstagramChatIntegration: Message listener set up");
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      console.log("InstagramChatIntegration: Message listener removed");
+    };
   }, []);
-
-  // Handle clicking the deploy button
-  const handleDeployClick = (chatElement: HTMLElement, chatId: string) => {
-    try {
-      // Extract chat messages
-      const messages = extractChatMessages(chatElement);
-      
-      // Store current chat data
-      setCurrentChatData({
-        chatId,
-        messages
-      });
-      
-      // Open config drawer
-      setIsDrawerOpen(true);
-    } catch (error) {
-      console.error('Error handling deploy click:', error);
-      toast({
-        title: "Error",
-        description: "Failed to initialize chat. Please try again.",
-        variant: "destructive"
-      });
-    }
-  };
   
   // Handle agent deployment after configuration
   const handleAgentDeploy = async (config: any) => {
     try {
-      // Deploy the agent
-      const agent = await deployAgent(config);
+      console.log("Deploying agent with config:", config);
       
       // Add to active chats
       setActiveAgentChats(prev => {
@@ -60,10 +49,25 @@ const InstagramChatIntegration: React.FC = () => {
         return updated;
       });
       
+      // Send message back to content script
+      if (window.parent) {
+        window.parent.postMessage({
+          action: 'deployAgent',
+          config: config
+        }, '*');
+        
+        console.log("Sent deployAgent message to parent");
+      } else {
+        console.error("No parent window found");
+      }
+      
       toast({
         title: "Agent Deployed",
         description: `${config.persona.name} is now active in ${config.scope === 'current' ? 'the current chat' : 'all chats'}.`,
       });
+      
+      // Close the drawer
+      setIsDrawerOpen(false);
     } catch (error) {
       console.error('Failed to deploy agent:', error);
       toast({
@@ -78,7 +82,10 @@ const InstagramChatIntegration: React.FC = () => {
     <>
       <AgentConfigDrawer 
         isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
+        onClose={() => {
+          setIsDrawerOpen(false);
+          console.log("Closing agent config drawer");
+        }}
         chatData={currentChatData}
         onDeploy={handleAgentDeploy}
       />

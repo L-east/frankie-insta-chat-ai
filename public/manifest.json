@@ -1,10 +1,10 @@
 
 {
   "manifest_version": 3,
-  "name": "FAI",
-  "version": "5.0.0",
+  "name": "Frankie AI",
+  "version": "1.0.0",
   "description": "Deploy AI agents to handle your Instagram conversations",
-  "permissions": ["storage", "activeTab", "scripting"],
+  "permissions": ["storage", "activeTab", "scripting", "tabs"],
   "host_permissions": ["https://*.instagram.com/*"],
   "background": {
     "service_worker": "background.js"
@@ -13,12 +13,13 @@
     {
       "matches": ["https://*.instagram.com/*"],
       "js": ["content.js"],
-      "css": ["content.css"]
+      "css": ["content.css"],
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["index.html", "*.js", "*.css", "assets/*", "persona-avatars/*"],
+      "resources": ["index.html", "assets/*", "*.js", "*.css", "persona-avatars/*"],
       "matches": ["https://*.instagram.com/*"]
     }
   ],

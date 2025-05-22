@@ -1,3 +1,4 @@
+
 // Content script for the Frankie AI extension
 console.log('Frankie AI content script loaded');
 
@@ -10,11 +11,18 @@ let sidebar = null;
 function initializeFrankieAI() {
   console.log('Initializing Frankie AI for Instagram');
   
-  // Set up MutationObserver to detect when text areas appear
-  observeTextAreas();
-  
-  // Initial scan for existing text areas
-  injectDeployButtons();
+  // Check if we're on a direct message page
+  if (window.location.href.includes('/direct/') || window.location.href.includes('/messages/')) {
+    console.log('Instagram messages page detected, initializing Frankie AI features');
+    
+    // Set up MutationObserver to detect when text areas appear
+    observeTextAreas();
+    
+    // Initial scan for existing text areas
+    injectDeployButtons();
+  } else {
+    console.log('Not on Instagram messages page, skipping button injection');
+  }
 }
 
 // Observe the DOM for changes to detect new text areas
@@ -36,11 +44,20 @@ function observeTextAreas() {
 
 // Inject deploy buttons into text areas
 function injectDeployButtons() {
+  // Check if we're on a direct message page
+  if (!window.location.href.includes('/direct/') && !window.location.href.includes('/messages/')) {
+    console.log('Not on Instagram messages page, skipping button injection');
+    return;
+  }
+
   // Find all chat editors
   const chatEditors = document.querySelectorAll('div[contenteditable="true"][role="textbox"][aria-label="Message"]');
+  console.log('Found', chatEditors.length, 'chat editors');
   
-  chatEditors.forEach(chat => {
+  chatEditors.forEach((chat, index) => {
+    console.log('Processing chat editor', index);
     if (!chat.parentElement.querySelector('.deploy-wrapper-chat')) {
+      console.log('Adding deploy button to chat editor', index);
       const wrapper = document.createElement('div');
       wrapper.className = 'deploy-wrapper-chat';
       wrapper.style.display = 'inline-block';
@@ -79,12 +96,16 @@ function injectDeployButtons() {
       const submitContainer = chat.parentElement.querySelector('div[role="button"]')?.closest('div');
       if (submitContainer && submitContainer.parentNode) {
         submitContainer.parentNode.insertBefore(wrapper, submitContainer);
+        console.log('Button inserted successfully');
       } else {
         chat.parentElement.appendChild(wrapper);
+        console.log('Button appended to parent element (fallback)');
       }
 
       button.addEventListener('click', (e) => {
         e.preventDefault();
+        e.stopPropagation();
+        console.log('Deploy button clicked');
         handleDeployClick(chat.parentElement);
       });
     }
@@ -93,16 +114,18 @@ function injectDeployButtons() {
 
 // Handle deploy button click
 function handleDeployClick(chatForm) {
-  console.log('Deploy button clicked');
+  console.log('Deploy button clicked, handling click event');
   
   // Get chat ID - we'll use the form element as a unique identifier
   const chatId = 'chat-' + Date.now();
   
   // Extract messages from the chat window
   const messages = extractChatMessages(chatForm);
+  console.log('Extracted messages:', messages);
   
   // Find the chat participant's name
   const participantName = extractParticipantName();
+  console.log('Participant name:', participantName);
   
   // Store chat data
   const chatData = {
@@ -110,63 +133,92 @@ function handleDeployClick(chatForm) {
     participantName,
     messages
   };
-  console.log(chatData);
+  
   // Open sidebar with config
   openSidebar(chatData);
 }
 
 // Extract messages from chat window
 function extractChatMessages(chatForm) {
-  // Find the chat container - this selector needs to be updated based on Instagram's structure
-  const chatContainer = chatForm.closest('[role="dialog"]') || document.querySelector('main');
-  const messageElements = chatContainer.querySelectorAll('[role="row"]');
-  
-  const messages = [];
-  
-  messageElements.forEach((element, index) => {
-    // Determine sender - this logic needs to be updated based on Instagram's structure
-    const isMyMessage = element.querySelector('[style*="margin-left: auto"]') !== null;
-    const sender = isMyMessage ? 'user' : 'participant';
-    
-    // Extract message content
-    const contentElement = element.querySelector('div[dir="auto"]');
-    const content = contentElement ? contentElement.textContent : '';
-    
-    // Extract timestamp if available
-    const timeElement = element.querySelector('time');
-    const timestamp = timeElement ? timeElement.getAttribute('datetime') : new Date().toISOString();
-    
-    if (content) {
-      messages.push({
-        id: `msg-${index}`,
-        sender,
-        content,
-        timestamp
-      });
+  try {
+    // Find the chat container - this selector needs to be updated based on Instagram's structure
+    const chatContainer = chatForm.closest('[role="dialog"]') || document.querySelector('main');
+    if (!chatContainer) {
+      console.error('Could not find chat container');
+      return [];
     }
-  });
-  
-  return messages;
+    
+    const messageElements = chatContainer.querySelectorAll('[role="row"]');
+    console.log('Found', messageElements.length, 'message elements');
+    
+    const messages = [];
+    
+    messageElements.forEach((element, index) => {
+      try {
+        // Determine sender - this logic needs to be updated based on Instagram's structure
+        const isMyMessage = element.querySelector('[style*="margin-left: auto"]') !== null;
+        const sender = isMyMessage ? 'user' : 'participant';
+        
+        // Extract message content
+        const contentElement = element.querySelector('div[dir="auto"]');
+        const content = contentElement ? contentElement.textContent : '';
+        
+        // Extract timestamp if available
+        const timeElement = element.querySelector('time');
+        const timestamp = timeElement ? timeElement.getAttribute('datetime') : new Date().toISOString();
+        
+        if (content) {
+          messages.push({
+            id: `msg-${index}`,
+            sender,
+            content,
+            timestamp
+          });
+        }
+      } catch (innerError) {
+        console.error('Error processing individual message:', innerError);
+      }
+    });
+    
+    return messages;
+  } catch (error) {
+    console.error('Error extracting chat messages:', error);
+    return [];
+  }
 }
 
 // Extract participant name
 function extractParticipantName() {
-  // Find the chat header - this selector needs to be updated based on Instagram's structure
-  const headerElement = document.querySelector('[role="dialog"] h1') || document.querySelector('main h1');
-  return headerElement ? headerElement.textContent.trim() : 'User';
+  try {
+    // Find the chat header - this selector needs to be updated based on Instagram's structure
+    const headerElement = document.querySelector('[role="dialog"] h1') || document.querySelector('main h1');
+    return headerElement ? headerElement.textContent.trim() : 'User';
+  } catch (error) {
+    console.error('Error extracting participant name:', error);
+    return 'User';
+  }
 }
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Content script received message:', request);
+  
   if (request.action === 'openSidebar') {
+    console.log('Received openSidebar action');
     openSidebar();
+    sendResponse({ success: true });
   }
+  
+  return true; // Keep channel open for async response
 });
 
 // Create and open the sidebar
 function openSidebar(chatData = null) {
+  console.log('Opening sidebar with chat data:', chatData);
+  
   // Check if sidebar already exists
   if (!sidebar) {
+    console.log('Creating new sidebar');
     // Create sidebar container
     sidebar = document.createElement('div');
     sidebar.id = 'frankie-sidebar';
@@ -186,26 +238,38 @@ function openSidebar(chatData = null) {
     iframe.style.width = '100%';
     iframe.style.height = '100%';
     iframe.style.border = 'none';
-    iframe.src = chrome.runtime.getURL('index.html');
-    console.log('iframe');
+    
+    // We need to use the extension URL to load the React app
+    const extensionURL = chrome.runtime.getURL('index.html');
+    console.log('Loading extension URL in iframe:', extensionURL);
+    iframe.src = extensionURL;
     
     sidebar.appendChild(iframe);
     document.body.appendChild(sidebar);
     
     // Wait for iframe to load
     iframe.onload = function() {
+      console.log('Iframe loaded successfully');
       if (chatData) {
         // Send chat data to the iframe
+        console.log('Sending chat data to iframe');
         iframe.contentWindow.postMessage({
           action: 'openAgentConfig',
           chatData
         }, '*');
       }
     };
+
+    // Add error handling for iframe
+    iframe.onerror = function(error) {
+      console.error('Error loading iframe:', error);
+    };
   } else {
+    console.log('Using existing sidebar');
     // Send chat data to the iframe if provided
     const iframe = sidebar.querySelector('iframe');
     if (iframe && iframe.contentWindow && chatData) {
+      console.log('Sending chat data to existing iframe');
       iframe.contentWindow.postMessage({
         action: 'openAgentConfig',
         chatData
@@ -216,8 +280,9 @@ function openSidebar(chatData = null) {
   // Show sidebar
   setTimeout(() => {
     sidebar.style.transform = 'translateX(0)';
+    console.log('Sidebar animation started');
   }, 10);
-  console.log('sidebar');
+  
   // Add close button
   addSidebarCloseButton(sidebar);
 }
@@ -248,12 +313,14 @@ function addSidebarCloseButton(sidebar) {
 
 // Inject text into chat input with typing effect
 function injectReplyToChat(chatId, message, typingEffect = true) {
+  console.log('Injecting reply to chat:', chatId, message, typingEffect);
   return new Promise((resolve) => {
     // Find the textarea for the specified chat
     const chatForm = document.querySelector(`form`);
     const chatInput = chatForm ? chatForm.querySelector('textarea') : null;
     
     if (chatInput && chatInput instanceof HTMLTextAreaElement) {
+      console.log('Found chat input, injecting text');
       if (typingEffect) {
         // Simulate typing effect
         chatInput.focus();
@@ -271,6 +338,7 @@ function injectReplyToChat(chatId, message, typingEffect = true) {
             i++;
           } else {
             clearInterval(typeInterval);
+            console.log('Finished typing effect');
             
             // If auto mode, trigger submit after typing
             if (activeAgents.get(chatId)?.config.mode === 'auto') {
@@ -294,6 +362,7 @@ function injectReplyToChat(chatId, message, typingEffect = true) {
         // Trigger input event to update Instagram's internal state
         const inputEvent = new Event('input', { bubbles: true });
         chatInput.dispatchEvent(inputEvent);
+        console.log('Text injected without typing effect');
         
         resolve();
       }
@@ -303,6 +372,23 @@ function injectReplyToChat(chatId, message, typingEffect = true) {
     }
   });
 }
+
+// Listen for messages from React app in iframe
+window.addEventListener('message', function(event) {
+  console.log('Window received message:', event.data);
+  
+  if (event.data && event.data.action === 'deployAgent') {
+    console.log('Deploying agent with config:', event.data.config);
+    deployAgent(event.data.config);
+  }
+  
+  if (event.data && event.data.action === 'closeSidebar') {
+    const sidebar = document.getElementById('frankie-sidebar');
+    if (sidebar) {
+      sidebar.style.transform = 'translateX(100%)';
+    }
+  }
+});
 
 // Deploy AI agent
 function deployAgent(config) {
@@ -486,11 +572,12 @@ async function processChat(agentInstance) {
   }
 }
 
-// Simulate LLM API call
+// Simulate LLM API call (this would be replaced by a real API call to your backend)
 async function generateAIResponse(config) {
   console.log('Generating response for:', config);
   
-  // In a real implementation, this would make an API call to an LLM
+  // In a real implementation, this would make an API call to a backend
+  // that would then call Gemini API
   
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 1000));
@@ -502,13 +589,13 @@ async function generateAIResponse(config) {
     case 'casanova':
       response = "Hey there! I couldn't help but notice your message. How's your day going? 💫";
       break;
-    case 'sherlock':
-      response = "Interesting. Based on our conversation, I deduce you're looking for a thoughtful response.";
+    case 'cleopatra':
+      response = "I admire your attention to detail. Let's continue this fascinating dialogue.";
       break;
-    case 'confidant':
-      response = "I understand how you feel. It's completely normal to have those thoughts.";
+    case 'gentleman':
+      response = "It's a pleasure to chat with you. Perhaps we could discuss this topic further sometime?";
       break;
-    case 'comedian':
+    case 'funny-guy':
       response = "Why don't scientists trust atoms? Because they make up everything! 😂";
       break;
     case 'icebreaker':
@@ -525,45 +612,27 @@ async function generateAIResponse(config) {
   return response;
 }
 
-// Listen for messages from React app in iframe
-window.addEventListener('message', function(event) {
-  if (event.data && event.data.action === 'deployAgent') {
-    deployAgent(event.data.config);
-  }
-  
-  if (event.data && event.data.action === 'closeSidebar') {
-    const sidebar = document.getElementById('frankie-sidebar');
-    if (sidebar) {
-      sidebar.style.transform = 'translateX(100%)';
-    }
-  }
-});
-
-// Listen for messages from background script
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-  console.log('Message received in content script:', request);
-  
-  if (request.action === 'deployAgent') {
-    deployAgent(request.config);
-    sendResponse({ success: true });
-  }
-  
-  return true; // Required for async sendResponse
-});
-
 // Initialize when the page is loaded
 document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOMContentLoaded event fired');
   // Delay initialization to ensure Instagram's UI is fully loaded
   setTimeout(initializeFrankieAI, 2000);
 });
 
+// Check if we're already on the messages page and initialize immediately
+if (document.readyState !== 'loading') {
+  console.log('Document already ready, initializing Frankie AI');
+  setTimeout(initializeFrankieAI, 1000);
+} else {
+  console.log('Document not ready yet, will initialize on DOMContentLoaded');
+}
+
 // Also check periodically for new chat elements (Instagram loads dynamically)
 setInterval(() => {
-  const isMessagePage = document.querySelectorAll('div[contenteditable="true"][role="textbox"][aria-label="Message"]').length > 0;
-  if (isMessagePage) {
-    injectDeployButtons();
+  if (window.location.href.includes('/direct/') || window.location.href.includes('/messages/')) {
+    const isMessagePage = document.querySelectorAll('div[contenteditable="true"][role="textbox"][aria-label="Message"]').length > 0;
+    if (isMessagePage) {
+      injectDeployButtons();
+    }
   }
 }, 5000);
-
-// Initialize immediately for cases when DOMContentLoaded has already fired
-initializeFrankieAI();
