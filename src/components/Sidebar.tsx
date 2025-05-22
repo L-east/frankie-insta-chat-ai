@@ -200,57 +200,59 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 </TabsTrigger>
               </TabsList>
               
-              <TabsContent value="personas" className="p-4 space-y-4">
-                {personas.map((persona) => (
-                  <PersonaCard 
-                    key={persona.id}
-                    persona={persona}
-                    onClick={() => selectPersona(persona.id)}
-                    layout="horizontal"
-                  />
-                ))}
-              </TabsContent>
-              
-              <TabsContent value="history" className="p-4 space-y-4">
-                {deploymentHistory.length > 0 ? (
-                  <div className="space-y-3">
-                    {deploymentHistory
-                      .sort((a, b) => {
-                        // First sort by status (active first)
-                        if (a.status === 'active' && b.status !== 'active') return -1;
-                        if (a.status !== 'active' && b.status === 'active') return 1;
-                        // Then sort by created_at
-                        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-                      })
-                      .map((deployment) => (
-                        <div key={deployment.id} className="border rounded-lg p-4">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-medium">{
-                                personas.find(p => p.id === deployment.persona_id)?.name || 
-                                "Agent"
-                              }</h4>
-                              <div className="text-sm text-gray-500">
-                                Deployed {new Date(deployment.created_at).toLocaleDateString()}
+              <div className="p-4">
+                <TabsContent value="personas" className="space-y-4 mt-0">
+                  {personas.map((persona) => (
+                    <PersonaCard 
+                      key={persona.id}
+                      persona={persona}
+                      onClick={() => selectPersona(persona.id)}
+                      layout="horizontal"
+                    />
+                  ))}
+                </TabsContent>
+                
+                <TabsContent value="history" className="space-y-4 mt-0">
+                  {deploymentHistory.length > 0 ? (
+                    <div className="space-y-3">
+                      {deploymentHistory
+                        .sort((a, b) => {
+                          // First sort by status (active first)
+                          if (a.status === 'active' && b.status !== 'active') return -1;
+                          if (a.status !== 'active' && b.status === 'active') return 1;
+                          // Then sort by created_at
+                          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+                        })
+                        .map((deployment) => (
+                          <div key={deployment.id} className="border rounded-lg p-4">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-medium">{
+                                  personas.find(p => p.id === deployment.persona_id)?.name || 
+                                  "Agent"
+                                }</h4>
+                                <div className="text-sm text-gray-500">
+                                  Deployed {new Date(deployment.created_at).toLocaleDateString()}
+                                </div>
+                                <div className="mt-1">
+                                  Status: {getStatusLabel(deployment.status || 'unknown')}
+                                </div>
                               </div>
-                              <div className="mt-1">
-                                Status: {getStatusLabel(deployment.status || 'unknown')}
+                              <div className="text-right text-sm">
+                                <div>Messages: {deployment.messages_sent || 0}/{deployment.message_count || 'N/A'}</div>
+                                <div>Mode: {deployment.mode}</div>
                               </div>
-                            </div>
-                            <div className="text-right text-sm">
-                              <div>Messages: {deployment.messages_sent || 0}/{deployment.message_count || 'N/A'}</div>
-                              <div>Mode: {deployment.mode}</div>
                             </div>
                           </div>
-                        </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    No deployment history yet
-                  </div>
-                )}
-              </TabsContent>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      No deployment history yet
+                    </div>
+                  )}
+                </TabsContent>
+              </div>
             </Tabs>
           </div>
         )}

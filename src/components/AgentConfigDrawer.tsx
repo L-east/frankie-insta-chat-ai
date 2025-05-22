@@ -120,9 +120,9 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
     
     try {
       // Check if user has enough messages
-      if (user) {
-        const freeMessagesUsed = user.freeMessagesUsed || 0;
-        const freeMessagesQuota = user.freeMessagesQuota || 100;
+      if (user && agentUsage) {
+        const freeMessagesUsed = agentUsage.free_messages_used || 0;
+        const freeMessagesQuota = agentUsage.free_messages_quota || 100;
         
         if (freeMessagesUsed >= freeMessagesQuota) {
           toast({
@@ -202,142 +202,142 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
               <TabsTrigger value="deploy">Deploy Agent</TabsTrigger>
               <TabsTrigger value="history">Agent History</TabsTrigger>
             </TabsList>
-          </Tabs>
-        </DrawerHeader>
-        
-        <div className="px-4 overflow-y-auto pb-2 max-h-[calc(90vh-10rem)]">
-          <TabsContent value="deploy">
-            {/* Persona selection */}
-            <div className="mb-6">
-              <h3 className="text-lg font-medium mb-3">Select Persona</h3>
-              <div className="space-y-3">
-                {personas.map((persona) => (
-                  <PersonaCard 
-                    key={persona.id}
-                    persona={persona}
-                    onClick={() => selectPersona(persona.id)}
-                    isSelected={selectedPersonaId === persona.id}
-                    layout="horizontal"
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Configuration sections */}
-            <div className="space-y-6">
-              {/* Instructions */}
-              <div className="border rounded-lg p-4">
-                <h4 className="font-medium mb-2">Instructions for {selectedPersona?.name || 'persona'}</h4>
-                <div className="space-y-2">
-                  <Textarea 
-                    placeholder="Add custom instructions to guide the AI..."
-                    value={customPrompt}
-                    onChange={(e) => setCustomPrompt(e.target.value)}
-                  />
+          
+            <div className="px-4 overflow-y-auto pb-2 max-h-[calc(90vh-10rem)]">
+              <TabsContent value="deploy">
+                {/* Persona selection */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-medium mb-3">Select Persona</h3>
+                  <div className="space-y-3">
+                    {personas.map((persona) => (
+                      <PersonaCard 
+                        key={persona.id}
+                        persona={persona}
+                        onClick={() => selectPersona(persona.id)}
+                        isSelected={selectedPersonaId === persona.id}
+                        layout="horizontal"
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-              
-              {/* Session Controls */}
-              <div className="border rounded-lg p-4">
-                <h4 className="font-medium mb-2">Session Controls</h4>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="time-limit">Time Limit (minutes)</Label>
-                      <Input 
-                        id="time-limit" 
-                        placeholder="60"
-                        type="number" 
-                        value={timeLimit}
-                        onChange={(e) => setTimeLimit(e.target.value)}
-                        min="1"
-                        max="240"
+
+                {/* Configuration sections */}
+                <div className="space-y-6">
+                  {/* Instructions */}
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-medium mb-2">Instructions for {selectedPersona?.name || 'persona'}</h4>
+                    <div className="space-y-2">
+                      <Textarea 
+                        placeholder="Add custom instructions to guide the AI..."
+                        value={customPrompt}
+                        onChange={(e) => setCustomPrompt(e.target.value)}
                       />
-                      <p className="text-xs text-gray-500 mt-1">Max: 240 minutes</p>
-                    </div>
-                    <div>
-                      <Label htmlFor="message-count">Message Count</Label>
-                      <Input 
-                        id="message-count" 
-                        placeholder="1"
-                        type="number"
-                        value={messageCount}
-                        onChange={(e) => setMessageCount(e.target.value)}
-                        min="1"
-                        max="100"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Max: 100 messages</p>
                     </div>
                   </div>
                   
-                  <div>
-                    <div className="mb-2">Mode</div>
-                    <RadioGroup value={mode} onValueChange={(value) => setMode(value as 'auto'|'manual')}>
-                      <div className="flex items-center space-x-2 mb-2">
-                        <RadioGroupItem value="auto" id="auto" />
-                        <Label htmlFor="auto">Fully Auto (agent sends directly)</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="manual" id="manual" />
-                        <Label htmlFor="manual">Semi-Manual (agent drafts, you send)</Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                  
-                  {agentUsage && user && (
-                    <div className="text-xs text-gray-500 mt-4">
-                      <div>
-                        Messages: {agentUsage.free_messages_used}/{agentUsage.free_messages_quota} used
-                      </div>
-                      {agentUsage.free_messages_expiry && (
+                  {/* Session Controls */}
+                  <div className="border rounded-lg p-4">
+                    <h4 className="font-medium mb-2">Session Controls</h4>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          Expires in {Math.max(0, Math.ceil((new Date(agentUsage.free_messages_expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days
+                          <Label htmlFor="time-limit">Time Limit (minutes)</Label>
+                          <Input 
+                            id="time-limit" 
+                            placeholder="60"
+                            type="number" 
+                            value={timeLimit}
+                            onChange={(e) => setTimeLimit(e.target.value)}
+                            min="1"
+                            max="240"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Max: 240 minutes</p>
+                        </div>
+                        <div>
+                          <Label htmlFor="message-count">Message Count</Label>
+                          <Input 
+                            id="message-count" 
+                            placeholder="1"
+                            type="number"
+                            value={messageCount}
+                            onChange={(e) => setMessageCount(e.target.value)}
+                            min="1"
+                            max="100"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Max: 100 messages</p>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="mb-2">Mode</div>
+                        <RadioGroup value={mode} onValueChange={(value) => setMode(value as 'auto'|'manual')}>
+                          <div className="flex items-center space-x-2 mb-2">
+                            <RadioGroupItem value="auto" id="auto" />
+                            <Label htmlFor="auto">Fully Auto (agent sends directly)</Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="manual" id="manual" />
+                            <Label htmlFor="manual">Semi-Manual (agent drafts, you send)</Label>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      
+                      {agentUsage && user && (
+                        <div className="text-xs text-gray-500 mt-4">
+                          <div>
+                            Messages: {agentUsage.free_messages_used}/{agentUsage.free_messages_quota} used
+                          </div>
+                          {agentUsage.free_messages_expiry && (
+                            <div>
+                              Expires in {Math.max(0, Math.ceil((new Date(agentUsage.free_messages_expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
+                  </div>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="history">
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Agent History</h3>
+                  
+                  {deploymentHistory.length > 0 ? (
+                    <div className="space-y-3">
+                      {deploymentHistory.map((deployment) => (
+                        <div key={deployment.id} className="border rounded-lg p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-medium">{
+                                personas.find(p => p.id === deployment.persona_id)?.name || 
+                                "Agent"
+                              }</h4>
+                              <div className="text-sm text-gray-500">
+                                Deployed {new Date(deployment.created_at).toLocaleDateString()}
+                              </div>
+                              <div className="mt-1">
+                                Status: {getStatusLabel(deployment.status || 'unknown')}
+                              </div>
+                            </div>
+                            <div className="text-right text-sm">
+                              <div>Messages: {deployment.messages_sent || 0}/{deployment.message_count || 'N/A'}</div>
+                              <div>Mode: {deployment.mode}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      No deployment history yet
+                    </div>
                   )}
                 </div>
-              </div>
+              </TabsContent>
             </div>
-          </TabsContent>
-          
-          <TabsContent value="history">
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Agent History</h3>
-              
-              {deploymentHistory.length > 0 ? (
-                <div className="space-y-3">
-                  {deploymentHistory.map((deployment) => (
-                    <div key={deployment.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium">{
-                            personas.find(p => p.id === deployment.persona_id)?.name || 
-                            "Agent"
-                          }</h4>
-                          <div className="text-sm text-gray-500">
-                            Deployed {new Date(deployment.created_at).toLocaleDateString()}
-                          </div>
-                          <div className="mt-1">
-                            Status: {getStatusLabel(deployment.status || 'unknown')}
-                          </div>
-                        </div>
-                        <div className="text-right text-sm">
-                          <div>Messages: {deployment.messages_sent || 0}/{deployment.message_count || 'N/A'}</div>
-                          <div>Mode: {deployment.mode}</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  No deployment history yet
-                </div>
-              )}
-            </div>
-          </TabsContent>
-        </div>
+          </Tabs>
+        </DrawerHeader>
         
         <DrawerFooter>
           {activeTab === 'deploy' && (

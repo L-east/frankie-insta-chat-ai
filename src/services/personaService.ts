@@ -76,9 +76,21 @@ export const incrementMessageUsed = async () => {
     throw new Error("User must be authenticated to increment message usage");
   }
 
+  // Get the current profile data
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('free_messages_used')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError) throw profileError;
+  
+  // Update the free_messages_used count
+  const currentCount = profile?.free_messages_used || 0;
+  
   const { data, error } = await supabase
     .from('profiles')
-    .update({ free_messages_used: user.freeMessagesUsed ? user.freeMessagesUsed + 1 : 1 })
+    .update({ free_messages_used: currentCount + 1 })
     .eq('id', user.id);
 
   if (error) throw error;
