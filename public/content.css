@@ -1,0 +1,92 @@
+/* Custom styles for Frankie AI extension */
+
+.frankie-deploy-button {
+  display: inline-block;
+  margin-right: 8px;
+}
+
+.frankie-button {
+  background-color: #9747FF;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.frankie-button:hover {
+  background-color: #8035E0;
+}
+
+.frankie-close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 10000;
+}
+
+#frankie-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 100%;
+  background-color: white;
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 9999;
+  transition: transform 0.3s ease;
+  transform: translateX(100%);
+}
+
+.deploy-wrapper-chat {
+  display: inline-block;
+  margin-top: 10px;
+  margin-right: 8px;
+  z-index: 9999;
+}
+
+.deploy-button {
+  background-color: #9747FF;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color 0.2s;
+}
+
+.deploy-button:hover {
+  background-color: #8035E0;
+}
+
+.deploy-button svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Ensure the button is visible in Instagram's UI */
+div[role="dialog"] .deploy-wrapper-chat {
+  position: relative;
+  z-index: 9999;
+}
+
+/* Style for the button icon */
+.deploy-button svg {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
