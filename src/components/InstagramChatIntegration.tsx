@@ -9,10 +9,19 @@ const InstagramChatIntegration: React.FC = () => {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [currentChatData, setCurrentChatData] = useState<any>(null);
   const [activeAgentChats, setActiveAgentChats] = useState<Set<string>>(new Set());
+  const [isExtensionContext, setIsExtensionContext] = useState(false);
   const { user } = useAuthStore();
   
   // Listen for messages from the content script
   useEffect(() => {
+    // Check if we're running in an extension context
+    const isInExtension = window !== window.parent || 
+                         window.location.protocol === 'chrome-extension:' ||
+                         window.location.href.includes('chrome-extension://');
+    
+    setIsExtensionContext(isInExtension);
+    console.log('InstagramChatIntegration: Extension context detected:', isInExtension);
+    
     const handleMessage = async (event: MessageEvent) => {
       console.log("InstagramChatIntegration received message:", event.data);
       
@@ -31,10 +40,13 @@ const InstagramChatIntegration: React.FC = () => {
     window.addEventListener('message', handleMessage);
     console.log("InstagramChatIntegration: Message listener set up");
     
-    // Send ready message to content script
-    if (window.parent) {
-      window.parent.postMessage({ action: 'appReady' }, '*');
-      console.log("Sent appReady message to parent");
+    // Send ready message to content script if in extension context
+    if (isInExtension && window.parent && window.parent !== window) {
+      // Small delay to ensure content script is ready
+      setTimeout(() => {
+        window.parent.postMessage({ action: 'appReady' }, '*');
+        console.log("Sent appReady message to parent");
+      }, 500);
     }
     
     return () => {
@@ -79,7 +91,11 @@ const InstagramChatIntegration: React.FC = () => {
       
       // Update message usage if user is authenticated
       if (user) {
-        await incrementMessageUsed();
+        try {
+          await incrementMessageUsed();
+        } catch (error) {
+          console.warn('Failed to increment message usage:', error);
+        }
       }
       
       // Send enhanced config with limits to content script
@@ -91,15 +107,19 @@ const InstagramChatIntegration: React.FC = () => {
       };
       
       // Send message back to content script
-      if (window.parent) {
-        window.parent.postMessage({
-          action: 'deployAgent',
-          config: enhancedConfig
-        }, '*');
-        
-        console.log("Sent deployAgent message to parent with enhanced config");
+      if (isExtensionContext && window.parent && window.parent !== window) {
+        try {
+          window.parent.postMessage({
+            action: 'deployAgent',
+            config: enhancedConfig
+          }, '*');
+          
+          console.log("Sent deployAgent message to parent with enhanced config");
+        } catch (error) {
+          console.error("Error sending message to parent:", error);
+        }
       } else {
-        console.error("No parent window found");
+        console.log("Not in extension context or no parent window found");
       }
       
       toast({
@@ -118,6 +138,18 @@ const InstagramChatIntegration: React.FC = () => {
       });
     }
   };
+  
+  // Show a status message when running in extension context but drawer is closed
+  if (isExtensionContext && !isDrawerOpen) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Frankie AI Ready</h2>
+          <p className="text-gray-600">Click "Deploy Frankie" button on Instagram to configure your AI agent.</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <>

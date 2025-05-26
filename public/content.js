@@ -1,4 +1,3 @@
-
 // Content script for the Frankie AI extension
 console.log('Frankie AI content script loaded');
 
@@ -249,43 +248,53 @@ function openSidebar(chatData = null) {
     iframe.style.height = '100%';
     iframe.style.border = 'none';
     
-    // We need to use the extension URL to load the React app
+    // Get the correct extension URL
     const extensionURL = chrome.runtime.getURL('index.html');
     console.log('Loading extension URL in iframe:', extensionURL);
+    
+    // Ensure the iframe loads correctly
+    iframe.onload = function() {
+      console.log('Iframe loaded successfully');
+      // Wait a bit longer for React app to initialize
+      setTimeout(() => {
+        console.log('Attempting to send message to iframe');
+        try {
+          if (iframe.contentWindow && chatData) {
+            iframe.contentWindow.postMessage({
+              action: 'openAgentConfig',
+              chatData
+            }, '*');
+            console.log('Message sent to iframe successfully');
+          }
+        } catch (error) {
+          console.error('Error sending message to iframe:', error);
+        }
+      }, 2000); // Increased delay
+    };
+
+    iframe.onerror = function(error) {
+      console.error('Error loading iframe:', error);
+    };
+    
+    // Set the source after setting up event handlers
     iframe.src = extensionURL;
     
     sidebar.appendChild(iframe);
     document.body.appendChild(sidebar);
-    
-    // Wait for iframe to load
-    iframe.onload = function() {
-      console.log('Iframe loaded successfully');
-      if (chatData) {
-        // Give the iframe some time to initialize React app before sending message
-        setTimeout(() => {
-          console.log('Sending chat data to iframe');
-          iframe.contentWindow.postMessage({
-            action: 'openAgentConfig',
-            chatData
-          }, '*');
-        }, 1000);
-      }
-    };
-
-    // Add error handling for iframe
-    iframe.onerror = function(error) {
-      console.error('Error loading iframe:', error);
-    };
   } else {
     console.log('Using existing sidebar');
     // Send chat data to the iframe if provided
     const iframe = sidebar.querySelector('iframe');
     if (iframe && iframe.contentWindow && chatData) {
       console.log('Sending chat data to existing iframe');
-      iframe.contentWindow.postMessage({
-        action: 'openAgentConfig',
-        chatData
-      }, '*');
+      try {
+        iframe.contentWindow.postMessage({
+          action: 'openAgentConfig',
+          chatData
+        }, '*');
+      } catch (error) {
+        console.error('Error sending message to existing iframe:', error);
+      }
     }
   }
   
@@ -293,7 +302,7 @@ function openSidebar(chatData = null) {
   setTimeout(() => {
     sidebar.style.transform = 'translateX(0)';
     console.log('Sidebar animation started');
-  }, 10);
+  }, 100); // Slightly longer delay
   
   // Add close button
   addSidebarCloseButton(sidebar);
@@ -338,6 +347,10 @@ window.addEventListener('message', function(event) {
       sidebar.style.transform = 'translateX(100%)';
     }
   }
+  
+  if (event.data && event.data.action === 'appReady') {
+    console.log('React app is ready');
+  }
 });
 
 // Deploy AI agent using the conversation service
@@ -355,31 +368,24 @@ function deployAgent(config) {
   // Create conversation instance
   const instanceId = `agent-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   
-  // Load the conversation service
-  import(chrome.runtime.getURL('chatBotService.js')).then(module => {
-    const ConversationInstance = module.ConversationInstance || window.ConversationInstance;
-    const instance = new ConversationInstance(chatInput, instanceId);
-    
-    // Store the instance
-    conversationInstances.set(instanceId, instance);
-    
-    // Start the conversation
-    instance.startConversation(config);
-    
-    console.log(`Agent ${instanceId} deployed successfully`);
-  }).catch(error => {
-    console.error('Failed to load conversation service:', error);
-    
-    // Fallback: try using the global ConversationInstance if available
-    if (window.ConversationInstance) {
+  // Use the global ConversationInstance from chatBotService.js
+  if (window.ConversationInstance) {
+    try {
       const instance = new window.ConversationInstance(chatInput, instanceId);
+      
+      // Store the instance
       conversationInstances.set(instanceId, instance);
+      
+      // Start the conversation
       instance.startConversation(config);
-      console.log(`Agent ${instanceId} deployed successfully (fallback)`);
-    } else {
-      console.error('ConversationInstance not available');
+      
+      console.log(`Agent ${instanceId} deployed successfully`);
+    } catch (error) {
+      console.error('Failed to create conversation instance:', error);
     }
-  });
+  } else {
+    console.error('ConversationInstance not available. Make sure chatBotService.js is loaded.');
+  }
 }
 
 // Initialize when the page is loaded
