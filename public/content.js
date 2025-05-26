@@ -1,10 +1,15 @@
+
 // Content script for the Frankie AI extension
 console.log('Frankie AI content script loaded');
+
+// Import the conversation bot service
+let ConversationInstance;
 
 // State
 let activeAgents = new Map();
 let chatObservers = new Map();
 let sidebar = null;
+let conversationInstances = new Map();
 
 // Main function to initialize the extension
 function initializeFrankieAI() {
@@ -318,72 +323,6 @@ function addSidebarCloseButton(sidebar) {
   }
 }
 
-// Inject text into chat input with typing effect
-function injectReplyToChat(chatId, message, typingEffect = true) {
-  console.log('Injecting reply to chat:', chatId, message, typingEffect);
-  return new Promise((resolve) => {
-    // Find the textarea for the specified chat using the chat ID
-    const chatInput = document.getElementById(chatId);
-    
-    if (chatInput) {
-      console.log('Found chat input for chat ID:', chatId, 'injecting text');
-      
-      if (typingEffect) {
-        // Simulate typing effect
-        chatInput.focus();
-        chatInput.innerHTML = '';
-        
-        let i = 0;
-        const typeInterval = setInterval(() => {
-          if (i < message.length) {
-            // Use execCommand for contenteditable divs
-            document.execCommand('insertText', false, message[i]);
-            
-            // Trigger input event to update Instagram's internal state
-            const inputEvent = new Event('input', { bubbles: true });
-            chatInput.dispatchEvent(inputEvent);
-            
-            i++;
-          } else {
-            clearInterval(typeInterval);
-            console.log('Finished typing effect for chat ID:', chatId);
-            
-            // If auto mode, trigger submit after typing
-            const agentInstance = Array.from(activeAgents.values())
-              .find(agent => agent.chatId === chatId);
-              
-            if (agentInstance?.config.mode === 'auto') {
-              setTimeout(() => {
-                // Find and click the send button
-                const sendButton = chatInput.parentElement.querySelector('[type="submit"]');
-                if (sendButton) {
-                  sendButton.click();
-                  console.log('Message sent automatically for chat ID:', chatId);
-                }
-              }, 500);
-            }
-            
-            resolve();
-          }
-        }, 20); // Speed of typing effect
-      } else {
-        // Set the value directly
-        chatInput.innerHTML = message;
-        
-        // Trigger input event to update Instagram's internal state
-        const inputEvent = new Event('input', { bubbles: true });
-        chatInput.dispatchEvent(inputEvent);
-        console.log('Text injected without typing effect for chat ID:', chatId);
-        
-        resolve();
-      }
-    } else {
-      console.error(`Chat input not found for chat ID: ${chatId}`);
-      resolve();
-    }
-  });
-}
-
 // Listen for messages from React app in iframe
 window.addEventListener('message', function(event) {
   console.log('Window received message:', event.data);
@@ -401,254 +340,36 @@ window.addEventListener('message', function(event) {
   }
 });
 
-// Deploy AI agent
+// Deploy AI agent using the new conversation service
 function deployAgent(config) {
   console.log('Deploying agent with config:', config);
   
-  const agentId = `agent-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   const chatId = config.chatData.chatId;
+  const chatInput = document.getElementById(chatId);
   
-  let timeoutId;
-  let messagesSent = 0;
-  let isWaitingForReply = false;
-  
-  // Setup chat message observer
-  setupChatObserver(chatId);
-  
-  const processChat = async () => {
-    if (isWaitingForReply) return;
-    
-    // Check if time limit has been reached
-    if (config.time_limit) {
-      const elapsedMinutes = (Date.now() - startTime) / (1000 * 60);
-      if (elapsedMinutes >= config.time_limit) {
-        stopAgent();
-        return;
-      }
-    }
-    
-    // Check if message count has been reached
-    if (config.message_count && messagesSent >= config.message_count) {
-      stopAgent();
-      return;
-    }
-    
-    // Generate AI response
-    try {
-      const response = await generateAIResponse(config);
-      
-      // For auto mode, inject the response with typing effect
-      if (config.mode === 'auto') {
-        await injectReplyToChat(chatId, response, true);
-        messagesSent++;
-        
-        // Simulate waiting for reply before sending next message
-        isWaitingForReply = true;
-        setTimeout(() => {
-          isWaitingForReply = false;
-        }, 30000 + Math.random() * 60000); // Random wait between 30-90 seconds
-      } 
-      // For manual mode, just inject the text without sending
-      else {
-        await injectReplyToChat(chatId, response, false);
-      }
-    } catch (error) {
-      console.error('Error generating AI response:', error);
-    }
-  };
-  
-  const stopAgent = async () => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-    
-    // Remove chat observer
-    const observer = chatObservers.get(chatId);
-    if (observer) {
-      observer.disconnect();
-      chatObservers.delete(chatId);
-    }
-    
-    // Notify backend to end conversation
-    try {
-      await fetch('http://localhost:5000/end-conversation', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ chat_id: chatId })
-      });
-    } catch (error) {
-      console.error('Error ending conversation:', error);
-    }
-    
-    activeAgents.delete(agentId);
-    console.log(`Agent ${agentId} stopped`);
-  };
-  
-  const startTime = Date.now();
-  
-  // Create agent instance
-  const agentInstance = {
-    id: agentId,
-    config,
-    status: 'active',
-    startTime,
-    messagesSent,
-    stop: stopAgent,
-    chatId
-  };
-  
-  // Set up time limit if specified
-  if (config.time_limit) {
-    const timeoutMs = config.time_limit * 60 * 1000;
-    timeoutId = setTimeout(stopAgent, timeoutMs);
-  }
-  
-  // Start processing the chat
-  processChat();
-  
-  activeAgents.set(agentId, agentInstance);
-  return agentInstance;
-}
-
-// Setup chat observer to detect new messages
-function setupChatObserver(chatId) {
-  // Find the chat container
-  const chatForm = document.querySelector('form');
-  const chatContainer = chatForm ? chatForm.closest('[role="dialog"]') || document.querySelector('main') : null;
-  
-  if (!chatContainer) return;
-  
-  // Check if observer already exists
-  if (chatObservers.has(chatId)) {
-    chatObservers.get(chatId).disconnect();
-  }
-  
-  // Create observer
-  const observer = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-      if (mutation.addedNodes.length) {
-        // New message detected
-        const agentInstance = Array.from(activeAgents.values())
-          .find(agent => agent.config.chatData.chatId === chatId);
-        
-        if (agentInstance && agentInstance.status === 'active') {
-          // Update the isWaitingForReply flag
-          agentInstance.isWaitingForReply = false;
-          
-          // Process chat with some delay to seem more natural
-          setTimeout(() => {
-            processChat(agentInstance);
-          }, 5000 + Math.random() * 5000); // Random delay between 5-10 seconds
-        }
-      }
-    }
-  });
-  
-  // Start observing
-  observer.observe(chatContainer, { childList: true, subtree: true });
-  chatObservers.set(chatId, observer);
-}
-
-// Process chat for an agent instance
-async function processChat(agentInstance) {
-  if (agentInstance.isWaitingForReply) return;
-  
-  // Check if time limit has been reached
-  if (agentInstance.config.time_limit) {
-    const elapsedMinutes = (Date.now() - agentInstance.startTime) / (1000 * 60);
-    if (elapsedMinutes >= agentInstance.config.time_limit) {
-      agentInstance.stop();
-      return;
-    }
-  }
-  
-  // Check if message count has been reached
-  if (agentInstance.config.message_count && agentInstance.messagesSent >= agentInstance.config.message_count) {
-    agentInstance.stop();
+  if (!chatInput) {
+    console.error('Chat input not found for deployment');
     return;
   }
   
-  // Extract latest messages
-  const chatForm = document.querySelector('form');
-  const messages = extractChatMessages(chatForm.querySelector('[contenteditable="true"][role="textbox"][aria-label="Message"]'));
+  // Create conversation instance
+  const instanceId = `agent-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   
-  // Update agent's messages
-  agentInstance.config.chatData.messages = messages;
-  
-  // Generate AI response
-  try {
-    const response = await generateAIResponse(agentInstance.config);
+  // Import and use the conversation service
+  import(chrome.runtime.getURL('chatBotService.js')).then(module => {
+    const ConversationInstance = module.ConversationInstance;
+    const instance = new ConversationInstance(chatInput, instanceId);
     
-    // For auto mode, inject the response with typing effect
-    if (agentInstance.config.mode === 'auto') {
-      await injectReplyToChat(agentInstance.config.chatData.chatId, response, true);
-      agentInstance.messagesSent++;
-      
-      // Simulate waiting for reply before sending next message
-      agentInstance.isWaitingForReply = true;
-    } 
-    // For manual mode, just inject the text without sending
-    else {
-      await injectReplyToChat(agentInstance.config.chatData.chatId, response, false);
-    }
-  } catch (error) {
-    console.error('Error generating AI response:', error);
-  }
-}
-
-// Simulate LLM API call
-async function generateAIResponse(config) {
-  console.log('Generating response for:', config);
-  
-  try {
-    const apiUrl = 'http://localhost:5000/process-text';
+    // Store the instance
+    conversationInstances.set(instanceId, instance);
     
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        chat_id: config.chatData.chatId,
-        prime_directive: config.custom_prompt || '', 
-        text: JSON.stringify(config.chatData.messages),
-        persona: {
-          id: config.persona.id || 'default',
-          name: config.persona.name || 'AI Assistant',
-          description: config.persona.description || '',
-          behaviorSnapshot: config.persona.behaviorSnapshot || ''
-        }
-      })
-    });
+    // Start the conversation
+    instance.startConversation(config);
     
-    if (response.ok) {
-      const data = await response.json();
-      if (data.error) {
-        console.error('Error from API:', data.error);
-        throw new Error(data.error);
-      }
-      return data.processed_text || "Thanks for your message! I'm here to chat whenever you're ready.";
-    } else {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to get response from API');
-    }
-  } catch (error) {
-    console.error('Error calling API:', error);
-    
-    // Fallback responses based on persona if API fails
-    switch (config.persona.id) {
-      case 'casanova':
-        return "Hey there! I couldn't help but notice your message. How's your day going? 💫";
-      case 'cleopatra':
-        return "I admire your attention to detail. Let's continue this fascinating dialogue.";
-      case 'gentleman':
-        return "It's a pleasure to chat with you. Perhaps we could discuss this topic further sometime?";
-      case 'funny-guy':
-        return "Why don't scientists trust atoms? Because they make up everything! 😂";
-      case 'icebreaker':
-        return "So, what's the most exciting thing that happened to you this week?";
-      default:
-        return "Thanks for your message! I'm here to chat whenever you're ready.";
-    }
-  }
+    console.log(`Agent ${instanceId} deployed successfully`);
+  }).catch(error => {
+    console.error('Failed to load conversation service:', error);
+  });
 }
 
 // Initialize when the page is loaded

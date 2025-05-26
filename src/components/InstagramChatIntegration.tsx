@@ -48,6 +48,28 @@ const InstagramChatIntegration: React.FC = () => {
     try {
       console.log("Deploying agent with config:", config);
       
+      // Validate time and message limits
+      const timeLimit = config.time_limit || 60; // Default 60 minutes
+      const messageCount = config.message_count || 1; // Default 1 message
+      
+      if (timeLimit > 240) {
+        toast({
+          title: "Invalid time limit",
+          description: "Time limit cannot exceed 240 minutes.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      if (messageCount > 100) {
+        toast({
+          title: "Invalid message count", 
+          description: "Message count cannot exceed 100.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
       // Add to active chats
       setActiveAgentChats(prev => {
         const updated = new Set(prev);
@@ -60,14 +82,22 @@ const InstagramChatIntegration: React.FC = () => {
         await incrementMessageUsed();
       }
       
+      // Send enhanced config with limits to content script
+      const enhancedConfig = {
+        ...config,
+        time_limit: timeLimit,
+        message_count: messageCount,
+        start_time: Date.now()
+      };
+      
       // Send message back to content script
       if (window.parent) {
         window.parent.postMessage({
           action: 'deployAgent',
-          config: config
+          config: enhancedConfig
         }, '*');
         
-        console.log("Sent deployAgent message to parent");
+        console.log("Sent deployAgent message to parent with enhanced config");
       } else {
         console.error("No parent window found");
       }
