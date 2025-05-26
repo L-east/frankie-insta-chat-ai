@@ -340,7 +340,7 @@ window.addEventListener('message', function(event) {
   }
 });
 
-// Deploy AI agent using the new conversation service
+// Deploy AI agent using the conversation service
 function deployAgent(config) {
   console.log('Deploying agent with config:', config);
   
@@ -355,9 +355,9 @@ function deployAgent(config) {
   // Create conversation instance
   const instanceId = `agent-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   
-  // Import and use the conversation service
+  // Load the conversation service
   import(chrome.runtime.getURL('chatBotService.js')).then(module => {
-    const ConversationInstance = module.ConversationInstance;
+    const ConversationInstance = module.ConversationInstance || window.ConversationInstance;
     const instance = new ConversationInstance(chatInput, instanceId);
     
     // Store the instance
@@ -369,6 +369,16 @@ function deployAgent(config) {
     console.log(`Agent ${instanceId} deployed successfully`);
   }).catch(error => {
     console.error('Failed to load conversation service:', error);
+    
+    // Fallback: try using the global ConversationInstance if available
+    if (window.ConversationInstance) {
+      const instance = new window.ConversationInstance(chatInput, instanceId);
+      conversationInstances.set(instanceId, instance);
+      instance.startConversation(config);
+      console.log(`Agent ${instanceId} deployed successfully (fallback)`);
+    } else {
+      console.error('ConversationInstance not available');
+    }
   });
 }
 

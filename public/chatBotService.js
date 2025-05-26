@@ -1,34 +1,8 @@
+// This file is for content script imports - it exports the conversation functionality
+// The actual implementation is in the TypeScript service
 
-interface ChatMessage {
-  id: string;
-  sender: 'user' | 'participant';
-  content: string;
-  timestamp: number;
-  element?: HTMLElement;
-}
-
-interface ConversationState {
-  active: boolean;
-  primeDirective: string;
-  targetInput: HTMLElement | null;
-  messageHistory: Array<{ role: string; content: string }>;
-  lastMessageCount: number;
-  isProcessing: boolean;
-  lastPageSnapshot: string;
-  monitorInterval: number | null;
-  retryCount: number;
-  maxRetries: number;
-  startTime: number;
-  messagesSent: number;
-  timeLimit?: number;
-  messageCount?: number;
-}
-
-export class ConversationInstance {
-  instanceId: string;
-  state: ConversationState;
-
-  constructor(targetInput: HTMLElement, instanceId: string) {
+class ConversationInstance {
+  constructor(targetInput, instanceId) {
     this.instanceId = instanceId;
     this.state = {
       active: false,
@@ -46,13 +20,13 @@ export class ConversationInstance {
     };
   }
 
-  logDebug(stage: string, message: string, data: any = null) {
+  logDebug(stage, message, data = null) {
     const timestamp = new Date().toISOString();
     console.log(`[${timestamp}] [${this.instanceId}] [${stage}] ${message}`);
     if (data) console.log(`[${timestamp}] [${this.instanceId}] [${stage}] Data:`, data);
   }
 
-  async startConversation(config: any) {
+  async startConversation(config) {
     this.state.active = true;
     this.state.primeDirective = config.custom_prompt || config.persona.description || '';
     this.state.messageHistory = [];
@@ -126,17 +100,17 @@ export class ConversationInstance {
     }
   }
 
-  async typeAndSendMessage(text: string): Promise<boolean> {
+  async typeAndSendMessage(text) {
     if (!this.state.active || !this.isInputStillValid()) return false;
 
     try {
-      const targetInput = this.state.targetInput!;
+      const targetInput = this.state.targetInput;
       
       if (targetInput.contentEditable === 'true') {
         targetInput.innerHTML = '';
         targetInput.dispatchEvent(new Event('input', { bubbles: true }));
       } else {
-        (targetInput as HTMLInputElement).value = '';
+        targetInput.value = '';
         targetInput.dispatchEvent(new Event('input', { bubbles: true }));
       }
 
@@ -156,7 +130,7 @@ export class ConversationInstance {
       if (isContentEditable) {
         await this.typeIntoContentEditable(targetInput, text);
       } else {
-        await this.typeIntoTextarea(targetInput as HTMLTextAreaElement, text);
+        await this.typeIntoTextarea(targetInput, text);
       }
       
       const sent = await this.attemptSend(targetInput);
@@ -174,6 +148,139 @@ export class ConversationInstance {
       this.logDebug('ERROR', 'Failed to send message', err);
       return false;
     }
+  }
+
+  isInputStillValid() {
+    try {
+      if (!this.state.targetInput) return false;
+      
+      if (!document.contains(this.state.targetInput)) return false;
+      
+      if (!this.state.targetInput.isConnected) return false;
+      
+      const rect = this.state.targetInput.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return false;
+      
+      if (this.state.targetInput.contentEditable !== 'true' && 
+          this.state.targetInput.tagName !== 'TEXTAREA' && 
+          this.state.targetInput.tagName !== 'INPUT') return false;
+      
+      return true;
+    } catch (e) {
+      this.logDebug('VALID', 'Validity check failed', e);
+      return false;
+    }
+  }
+
+  extractChatMessages() {
+    try {
+      if (!this.state.targetInput) return [];
+      
+      const possibleContainers = [
+        this.state.targetInput.closest('[role="dialog"]'),
+        this.state.targetInput.closest('main'),
+        this.state.targetInput.closest('div[role="main"]'),
+        this.state.targetInput.closest('[data-testid*="conversation"]'),
+        this.state.targetInput.closest('[class*="chat"]'),
+        document.querySelector('[role="main"]'),
+        document.body
+      ];
+      
+      let chatContainer = null;
+      for (const container of possibleContainers) {
+        if (container && container.querySelectorAll('[role="row"]').length > 0) {
+          chatContainer = container;
+          break;
+        }
+      }
+      
+      if (!chatContainer) {
+        this.logDebug('EXTRACT', 'No suitable chat container found');
+        return [];
+      }
+      
+      const messageElements = Array.from(chatContainer.querySelectorAll('[role="row"]'));
+      const messages = [];
+      
+      for (const element of messageElements) {
+        try {
+          const isMyMessage = !!(
+            element.querySelector('[style*="margin-left: auto"]') ||
+            element.querySelector('[data-testid="outgoing-message"]') ||
+            element.querySelector('[data-testid*="user-message"]') ||
+            element.closest('[data-testid*="user"]') ||
+            (element.querySelector('div')?.style?.marginLeft === 'auto')
+          );
+          
+          const contentSelectors = [
+            'div[dir="auto"]',
+            '[data-testid="message-text"]',
+            '[data-testid*="message"]',
+            '.message-content',
+            '[role="paragraph"]',
+            'p',
+            'div:not([role]):not([class*="meta"]):not([class*="time"])'
+          ];
+          
+          let content = '';
+          for (const selector of contentSelectors) {
+            const contentEl = element.querySelector(selector);
+            if (contentEl?.textContent?.trim()) {
+              content = contentEl.textContent.trim();
+              break;
+            }
+          }
+          
+          if (!content) {
+            content = element.textContent?.trim() || '';
+            const uiPatterns = [
+              /^\d+:\d+$/,
+              /^(online|offline|typing)$/i,
+              /^(read|delivered|sent)$/i
+            ];
+            
+            for (const pattern of uiPatterns) {
+              if (pattern.test(content)) {
+                content = '';
+                break;
+              }
+            }
+          }
+          
+          if (content && content.length > 3) {
+            messages.push({
+              id: element.id || `msg_${Date.now()}_${Math.random()}`,
+              sender: isMyMessage ? 'user' : 'participant',
+              content: content,
+              element: element,
+              timestamp: Date.now()
+            });
+          }
+        } catch (error) {
+          this.logDebug('EXTRACT', 'Error processing individual message', error);
+        }
+      }
+      
+      this.logDebug('EXTRACT', `Extracted ${messages.length} messages`);
+      return messages;
+    } catch (error) {
+      this.logDebug('EXTRACT', 'Error extracting messages', error);
+      return [];
+    }
+  }
+
+  getCurrentChatState() {
+    const messages = this.extractChatMessages();
+    return {
+      messageCount: messages.filter(m => m.sender === 'participant').length,
+      snapshot: messages.slice(-3).map(m => m.content).join('|')
+    };
+  }
+
+  updateConversationState() {
+    const currentState = this.getCurrentChatState();
+    this.state.lastMessageCount = currentState.messageCount;
+    this.state.lastPageSnapshot = currentState.snapshot;
   }
 
   startReplyMonitoring() {
@@ -261,7 +368,7 @@ export class ConversationInstance {
     this.logDebug('MONITOR', 'Reply monitoring started');
   }
 
-  shouldStopConversation(): boolean {
+  shouldStopConversation() {
     if (this.state.timeLimit) {
       const elapsedMinutes = (Date.now() - this.state.startTime) / (1000 * 60);
       if (elapsedMinutes >= this.state.timeLimit) {
@@ -278,7 +385,7 @@ export class ConversationInstance {
     return false;
   }
 
-  refreshInputReference(): boolean {
+  refreshInputReference() {
     try {
       if (this.isInputStillValid()) {
         return true;
@@ -290,7 +397,7 @@ export class ConversationInstance {
         const rect = editor.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0) {
           this.logDebug('REFRESH', 'Found new input reference');
-          this.state.targetInput = editor as HTMLElement;
+          this.state.targetInput = editor;
           return true;
         }
       }
@@ -302,7 +409,7 @@ export class ConversationInstance {
     }
   }
 
-  attemptReconnection(): boolean {
+  attemptReconnection() {
     try {
       if (this.refreshInputReference()) {
         return true;
@@ -314,9 +421,9 @@ export class ConversationInstance {
         const rect = editor.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0) {
           try {
-            (editor as HTMLElement).focus();
+            editor.focus();
             this.logDebug('RECONNECT', 'Successfully reconnected to new input');
-            this.state.targetInput = editor as HTMLElement;
+            this.state.targetInput = editor;
             return true;
           } catch (e) {
             continue;
@@ -332,150 +439,13 @@ export class ConversationInstance {
     }
   }
 
-  isInputStillValid(): boolean {
-    try {
-      if (!this.state.targetInput) return false;
-      
-      if (!document.contains(this.state.targetInput)) return false;
-      
-      if (!this.state.targetInput.isConnected) return false;
-      
-      const rect = this.state.targetInput.getBoundingClientRect();
-      if (rect.width === 0 && rect.height === 0) return false;
-      
-      if (this.state.targetInput.contentEditable !== 'true' && 
-          this.state.targetInput.tagName !== 'TEXTAREA' && 
-          this.state.targetInput.tagName !== 'INPUT') return false;
-      
-      return true;
-    } catch (e) {
-      this.logDebug('VALID', 'Validity check failed', e);
-      return false;
-    }
-  }
-
-  getCurrentChatState() {
-    const messages = this.extractChatMessages();
-    return {
-      messageCount: messages.filter(m => m.sender === 'participant').length,
-      snapshot: messages.slice(-3).map(m => m.content).join('|')
-    };
-  }
-
-  extractChatMessages(): ChatMessage[] {
-    try {
-      if (!this.state.targetInput) {
-        this.refreshInputReference();
-      }
-      
-      if (!this.state.targetInput) return [];
-      
-      const possibleContainers = [
-        this.state.targetInput.closest('[role="dialog"]'),
-        this.state.targetInput.closest('main'),
-        this.state.targetInput.closest('div[role="main"]'),
-        this.state.targetInput.closest('[data-testid*="conversation"]'),
-        this.state.targetInput.closest('[class*="chat"]'),
-        document.querySelector('[role="main"]'),
-        document.body
-      ];
-      
-      let chatContainer: Element | null = null;
-      for (const container of possibleContainers) {
-        if (container && container.querySelectorAll('[role="row"]').length > 0) {
-          chatContainer = container;
-          break;
-        }
-      }
-      
-      if (!chatContainer) {
-        this.logDebug('EXTRACT', 'No suitable chat container found');
-        return [];
-      }
-      
-      const messageElements = Array.from(chatContainer.querySelectorAll('[role="row"]'));
-      const messages: ChatMessage[] = [];
-      
-      for (const element of messageElements) {
-        try {
-          const isMyMessage = !!(
-            element.querySelector('[style*="margin-left: auto"]') ||
-            element.querySelector('[data-testid="outgoing-message"]') ||
-            element.querySelector('[data-testid*="user-message"]') ||
-            element.closest('[data-testid*="user"]') ||
-            (element.querySelector('div') as HTMLElement)?.style?.marginLeft === 'auto'
-          );
-          
-          const contentSelectors = [
-            'div[dir="auto"]',
-            '[data-testid="message-text"]',
-            '[data-testid*="message"]',
-            '.message-content',
-            '[role="paragraph"]',
-            'p',
-            'div:not([role]):not([class*="meta"]):not([class*="time"])'
-          ];
-          
-          let content = '';
-          for (const selector of contentSelectors) {
-            const contentEl = element.querySelector(selector);
-            if (contentEl?.textContent?.trim()) {
-              content = contentEl.textContent.trim();
-              break;
-            }
-          }
-          
-          if (!content) {
-            content = element.textContent?.trim() || '';
-            const uiPatterns = [
-              /^\d+:\d+$/,
-              /^(online|offline|typing)$/i,
-              /^(read|delivered|sent)$/i
-            ];
-            
-            for (const pattern of uiPatterns) {
-              if (pattern.test(content)) {
-                content = '';
-                break;
-              }
-            }
-          }
-          
-          if (content && content.length > 3) {
-            messages.push({
-              id: element.id || `msg_${Date.now()}_${Math.random()}`,
-              sender: isMyMessage ? 'user' : 'participant',
-              content: content,
-              element: element as HTMLElement,
-              timestamp: Date.now()
-            });
-          }
-        } catch (error) {
-          this.logDebug('EXTRACT', 'Error processing individual message', error);
-        }
-      }
-      
-      messages.sort((a, b) => {
-        const posA = Array.from(chatContainer!.querySelectorAll('*')).indexOf(a.element!);
-        const posB = Array.from(chatContainer!.querySelectorAll('*')).indexOf(b.element!);
-        return posA - posB;
-      });
-      
-      this.logDebug('EXTRACT', `Extracted ${messages.length} messages`);
-      return messages;
-    } catch (error) {
-      this.logDebug('EXTRACT', 'Error extracting messages', error);
-      return [];
-    }
-  }
-
-  isOurOwnMessage(text: string): boolean {
+  isOurOwnMessage(text) {
     return this.state.messageHistory.some(m => 
       m.role === 'assistant' && text.includes(m.content.substring(0, 50))
     );
   }
 
-  async processAndSendReply(replyText: string) {
+  async processAndSendReply(replyText) {
     if (!this.state.active || this.state.isProcessing) return;
     this.state.isProcessing = true;
 
@@ -518,7 +488,7 @@ export class ConversationInstance {
     }
   }
 
-  async handleError(): Promise<boolean> {
+  async handleError() {
     this.state.retryCount++;
     if (this.state.retryCount < this.state.maxRetries && this.state.active) {
       this.logDebug('RETRY', `Retrying... (${this.state.retryCount}/${this.state.maxRetries})`);
@@ -529,12 +499,6 @@ export class ConversationInstance {
       this.stopConversation();
       return false;
     }
-  }
-
-  updateConversationState() {
-    const currentState = this.getCurrentChatState();
-    this.state.lastMessageCount = currentState.messageCount;
-    this.state.lastPageSnapshot = currentState.snapshot;
   }
 
   stopConversation() {
@@ -548,7 +512,7 @@ export class ConversationInstance {
     this.logDebug('STOP', 'Conversation stopped');
   }
 
-  async attemptSend(targetInput: HTMLElement): Promise<boolean> {
+  async attemptSend(targetInput) {
     const sendButton = this.findSendButton(targetInput);
     if (sendButton) {
       try {
@@ -590,7 +554,7 @@ export class ConversationInstance {
     return false;
   }
 
-  findSendButton(input: HTMLElement): HTMLElement | null {
+  findSendButton(input) {
     const container = input.closest('form, div, section, article') || input.parentElement;
     
     const selectors = [
@@ -629,7 +593,7 @@ export class ConversationInstance {
             if (finalElement && (finalElement.tagName === 'BUTTON' || 
                               finalElement.getAttribute('role') === 'button')) {
               this.logDebug('SEND', `Found send button with selector: ${selector}`);
-              return finalElement as HTMLElement;
+              return finalElement;
             }
           }
         }
@@ -641,7 +605,7 @@ export class ConversationInstance {
     return null;
   }
 
-  async typeIntoContentEditable(element: HTMLElement, text: string): Promise<void> {
+  async typeIntoContentEditable(element, text) {
     return new Promise(async (resolve) => {
       try {
         this.logDebug('TYPE', 'Starting to type text', { 
@@ -678,7 +642,7 @@ export class ConversationInstance {
     });
   }
 
-  async typeIntoTextarea(textarea: HTMLTextAreaElement, text: string): Promise<void> {
+  async typeIntoTextarea(textarea, text) {
     return new Promise(async (resolve) => {
       try {
         this.logDebug('TYPE', 'Starting textarea typing', { 
@@ -713,4 +677,6 @@ export class ConversationInstance {
   }
 }
 
-export default ConversationInstance;
+// Export for the content script
+window.ConversationInstance = ConversationInstance;
+export { ConversationInstance };

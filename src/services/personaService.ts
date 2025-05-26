@@ -22,7 +22,6 @@ export const createPersonaDeployment = async (deploymentData: PersonaDeploymentD
     throw new Error("User must be authenticated to create a persona deployment");
   }
 
-  // Convert flag_keywords array to string for database storage
   const dataWithUserId = {
     ...deploymentData,
     user_id: user.id,
@@ -76,7 +75,6 @@ export const incrementMessageUsed = async () => {
     throw new Error("User must be authenticated to increment message usage");
   }
 
-  // Get the current profile data
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('free_messages_used')
@@ -85,7 +83,6 @@ export const incrementMessageUsed = async () => {
 
   if (profileError) throw profileError;
   
-  // Update the free_messages_used count
   const currentCount = profile?.free_messages_used || 0;
   
   const { data, error } = await supabase
