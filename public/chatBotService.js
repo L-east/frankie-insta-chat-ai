@@ -51,13 +51,20 @@ class ConversationInstance {
 
     try {
       const chatMessages = this.extractChatMessages();
-      const participantMessages = chatMessages
-        .filter(m => m.sender === 'participant')
-        .map(m => m.content)
+      
+      // Format messages with roles
+      const formattedMessages = chatMessages.map(m => ({
+        role: m.sender === 'user' ? 'model' : 'user',
+        content: m.content
+      }));
+
+      // Join messages with role information
+      const completeChatText = formattedMessages
+        .map(m => `${m.role === 'user' ? 'Participant' : 'AI'}: ${m.content}`)
         .join('\n');
 
       this.logDebug('API', 'Sending request to API', {
-        participantMessages: participantMessages.substring(0, 100) + '...',
+        completeChatText: completeChatText.substring(0, 100) + '...',
         primeDirective: this.state.primeDirective
       });
 
@@ -65,9 +72,8 @@ class ConversationInstance {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: participantMessages,
-          prime_directive: this.state.primeDirective,
-          message_history: []
+          text: completeChatText,
+          prime_directive: this.state.primeDirective
         })
       });
 
@@ -209,7 +215,9 @@ class ConversationInstance {
             element.querySelector('[data-testid="outgoing-message"]') ||
             element.querySelector('[data-testid*="user-message"]') ||
             element.closest('[data-testid*="user"]') ||
-            (element.querySelector('div')?.style?.marginLeft === 'auto')
+            (element.querySelector('div')?.style?.marginLeft === 'auto') ||
+            element.classList.contains('outgoing') ||
+            element.getAttribute('data-message-type') === 'outgoing'
           );
           
           const contentSelectors = [
@@ -225,14 +233,14 @@ class ConversationInstance {
           let content = '';
           for (const selector of contentSelectors) {
             const contentEl = element.querySelector(selector);
-            if (contentEl?.textContent?.trim()) {
-              content = contentEl.textContent.trim();
+            if (contentEl?.textContent) {
+              content = contentEl.textContent;
               break;
             }
           }
           
           if (!content) {
-            content = element.textContent?.trim() || '';
+            content = element.textContent || '';
             const uiPatterns = [
               /^\d+:\d+$/,
               /^(online|offline|typing)$/i,
@@ -250,7 +258,7 @@ class ConversationInstance {
           if (content && content.length > 3) {
             messages.push({
               id: element.id || `msg_${Date.now()}_${Math.random()}`,
-              sender: isMyMessage ? 'user' : 'participant',
+              sender: isMyMessage ? 'model' : 'participant',
               content: content,
               element: element,
               timestamp: Date.now()
@@ -452,13 +460,31 @@ class ConversationInstance {
     try {
       this.logDebug('API', 'Processing reply', replyText.substring(0, 100) + '...');
       
+      // Get all messages including the new reply
+      const allMessages = this.extractChatMessages();
+      
+      // Format messages with roles
+      const formattedMessages = allMessages.map(m => ({
+        role: m.sender === 'user' ? 'model' : 'user',
+        content: m.content
+      }));
+
+      // Join messages with role information
+      const completeChatText = formattedMessages
+        .map(m => `${m.role === 'user' ? 'Participant' : 'AI'}: ${m.content}`)
+        .join('\n');
+      
       const response = await fetch('http://localhost:5000/process-text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: replyText,
+          text: completeChatText,
           prime_directive: this.state.primeDirective,
-          message_history: this.state.messageHistory
+          chat_id: this.instanceId,
+          persona: {
+            name: 'Frankie',
+            description: this.state.primeDirective
+          }
         })
       });
 
@@ -674,6 +700,75 @@ class ConversationInstance {
         resolve();
       }
     });
+  }
+
+  // Add new methods for button handling
+  createDeployButton() {
+    const button = document.createElement('button');
+    button.id = 'deploy-frankie-btn';
+    button.className = 'frankie-btn deploy-btn';
+    button.textContent = 'Deploy Frankie';
+    button.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.handleDeployClick();
+    };
+    return button;
+  }
+
+  createStopButton() {
+    const button = document.createElement('button');
+    button.id = 'stop-frankie-btn';
+    button.className = 'frankie-btn stop-btn';
+    button.textContent = 'Stop Frankie';
+    button.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.handleStopClick();
+    };
+    return button;
+  }
+
+  handleDeployClick() {
+    // Show config drawer
+    if (window.showConfigDrawer) {
+      window.showConfigDrawer();
+    }
+  }
+
+  handleStopClick() {
+    // Stop the conversation without showing drawer
+    this.stopConversation();
+    this.updateButtonState();
+  }
+
+  updateButtonState() {
+    const deployBtn = document.getElementById('deploy-frankie-btn');
+    const stopBtn = document.getElementById('stop-frankie-btn');
+    
+    if (this.state.active) {
+      if (deployBtn) deployBtn.style.display = 'none';
+      if (stopBtn) stopBtn.style.display = 'block';
+    } else {
+      if (deployBtn) deployBtn.style.display = 'block';
+      if (stopBtn) stopBtn.style.display = 'none';
+    }
+  }
+
+  initializeButtons() {
+    const container = document.createElement('div');
+    container.className = 'frankie-button-container';
+    
+    const deployBtn = this.createDeployButton();
+    const stopBtn = this.createStopButton();
+    
+    container.appendChild(deployBtn);
+    container.appendChild(stopBtn);
+    
+    // Initially hide stop button
+    stopBtn.style.display = 'none';
+    
+    document.body.appendChild(container);
   }
 }
 

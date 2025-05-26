@@ -1,4 +1,3 @@
-
 import os
 import json
 from flask import Flask, request, jsonify
@@ -21,19 +20,14 @@ active_conversations = defaultdict(dict)
 def process_text():
     try:
         data = request.json
-        
+        print(data)
         if not data:
             return jsonify({'error': 'No data provided'}), 400
             
         # Extract info from request
         chat_id = data.get('chat_id')
         persona = data.get('persona', {})
-        messages = data.get('messages', [])
-        if isinstance(messages, str):
-            try:
-                messages = json.loads(messages)
-            except:
-                messages = []
+        text = data.get('text', '')
         custom_instructions = data.get('prime_directive', '')
         
         # Get or create chat history for this conversation
@@ -53,33 +47,9 @@ def process_text():
         active_conversations[chat_id]['messages_sent'] += 1
         active_conversations[chat_id]['last_activity_time'] = time.time()
         
-        # Check if we've exceeded limits
-        time_limit = data.get('time_limit', 60) # Default 60 min
-        message_limit = data.get('message_limit', 1) # Default 1 message
-        
-        time_elapsed = (time.time() - active_conversations[chat_id]['start_time']) / 60 # minutes
-        messages_sent = active_conversations[chat_id]['messages_sent']
-        
-        if time_elapsed > time_limit or messages_sent > message_limit:
-            active_conversations[chat_id]['status'] = 'finished'
-            return jsonify({
-                'processed_text': "I've reached the end of our conversation based on the limits set.",
-                'persona_id': persona.get('id'),
-                'chat_id': chat_id,
-                'status': 'finished',
-                'time_elapsed': time_elapsed,
-                'messages_sent': messages_sent
-            })
-        
-        # Format chat history for context
-        chat_context = ""
-        for msg in messages:
-            sender = "User" if msg.get('sender') == 'user' else "Other person"
-            chat_context += f"{sender}: {msg.get('content', '')}\n"
-            
         # Create prime directive based on persona and custom instructions
         prime_directive = f"""
-        You are roleplaying as {persona.get('name', 'an AI assistant')}.
+        You are roleplaying as {persona.get('name', 'a human')}.
         
         Character traits: {persona.get('description', '')}
         Behavior pattern: {persona.get('behaviorSnapshot', '')}
@@ -87,9 +57,9 @@ def process_text():
         Custom instructions: {custom_instructions}
         
         Respond to the chat in a natural, conversational way that matches the persona.
-        Keep responses concise and engaging.
+        Keep responses concise and engaging. Answer in less than 15 words.
         """
-        
+        print(prime_directive)
         # Get the chat instance for this conversation
         chat = active_conversations[chat_id]['chat']
         
@@ -98,19 +68,21 @@ def process_text():
             chat.send_message(prime_directive)
             active_conversations[chat_id]['initialized'] = True
         
-        # Add chat context
-        chat.send_message(f"Chat context:\n{chat_context}")
+        # Format the text with role information
+        formatted_text = f"Chat context:\n{text}"
         
-        # Generate response
-        response = chat.send_message("Based on the above context and instructions, generate a natural, engaging response that matches the persona.")
+        # Send the formatted text to the model
+        response = chat.send_message(formatted_text)
         
+        print(formatted_text)
+        print(response.text)
         return jsonify({
             'processed_text': response.text,
             'persona_id': persona.get('id'),
             'chat_id': chat_id,
             'status': 'active',
-            'time_elapsed': time_elapsed,
-            'messages_sent': messages_sent
+            'time_elapsed': (time.time() - active_conversations[chat_id]['start_time']) / 60,
+            'messages_sent': active_conversations[chat_id]['messages_sent']
         })
         
     except Exception as e:

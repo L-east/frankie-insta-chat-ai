@@ -1,4 +1,3 @@
-
 interface ChatMessage {
   id: string;
   sender: 'user' | 'participant';
@@ -419,14 +418,14 @@ export class ConversationInstance {
           let content = '';
           for (const selector of contentSelectors) {
             const contentEl = element.querySelector(selector);
-            if (contentEl?.textContent?.trim()) {
-              content = contentEl.textContent.trim();
+            if (contentEl?.textContent) {
+              content = contentEl.textContent;
               break;
             }
           }
           
           if (!content) {
-            content = element.textContent?.trim() || '';
+            content = element.textContent || '';
             const uiPatterns = [
               /^\d+:\d+$/,
               /^(online|offline|typing)$/i,

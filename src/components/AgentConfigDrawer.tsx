@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -74,7 +73,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
     }
     
     // Validate and set defaults for time limit
-    const timeLimitValue = timeLimit.trim() === '' ? '60' : timeLimit;
+    const timeLimitValue = timeLimit === '' ? '60' : timeLimit;
     const timeLimitNum = parseInt(timeLimitValue);
     if (timeLimitNum > 240) {
       toast({
@@ -86,7 +85,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
     }
     
     // Validate and set defaults for message count
-    const messageCountValue = messageCount.trim() === '' ? '1' : messageCount;
+    const messageCountValue = messageCount === '' ? '1' : messageCount;
     const messageCountNum = parseInt(messageCountValue);
     if (messageCountNum > 100) {
       toast({
