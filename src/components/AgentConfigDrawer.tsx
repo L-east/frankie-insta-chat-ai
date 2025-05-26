@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -34,8 +34,8 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
   // Form state with defaults
   const [customPrompt, setCustomPrompt] = useState('');
   const [toneStrength, setToneStrength] = useState(5);
-  const [timeLimit, setTimeLimit] = useState('60'); // Default 60 minutes
-  const [messageCount, setMessageCount] = useState(''); // Default empty, will use 1 if empty
+  const [timeLimit, setTimeLimit] = useState('60');
+  const [messageCount, setMessageCount] = useState('');
   const [mode, setMode] = useState<'auto'|'manual'>('auto');
 
   const selectedPersona = getSelectedPersona();
@@ -46,8 +46,8 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
       
       // Reset form fields when drawer opens
       deselectPersona();
-      setTimeLimit('60'); // Prefill time limit to 60 minutes
-      setMessageCount(''); // Don't prefill message count
+      setTimeLimit('60');
+      setMessageCount('');
       setCustomPrompt('');
     }
   }, [isOpen, user]);
@@ -74,7 +74,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
     }
     
     // Validate and set defaults for time limit
-    const timeLimitValue = timeLimit.trim() === '' ? '60' : timeLimit; // Default to 60 if empty
+    const timeLimitValue = timeLimit.trim() === '' ? '60' : timeLimit;
     const timeLimitNum = parseInt(timeLimitValue);
     if (timeLimitNum > 240) {
       toast({
@@ -86,7 +86,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
     }
     
     // Validate and set defaults for message count
-    const messageCountValue = messageCount.trim() === '' ? '1' : messageCount; // Default to 1 if empty
+    const messageCountValue = messageCount.trim() === '' ? '1' : messageCount;
     const messageCountNum = parseInt(messageCountValue);
     if (messageCountNum > 100) {
       toast({
@@ -169,6 +169,9 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
       <DrawerContent className="max-h-[90vh]">
         <DrawerHeader>
           <DrawerTitle>Deploy AI Agent</DrawerTitle>
+          <DrawerDescription>
+            Configure and deploy an AI persona to handle your Instagram chat conversations.
+          </DrawerDescription>
         </DrawerHeader>
         
         <div className="px-4 overflow-y-auto pb-2 max-h-[calc(90vh-10rem)]">

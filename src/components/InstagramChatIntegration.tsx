@@ -46,7 +46,7 @@ const InstagramChatIntegration: React.FC = () => {
       setTimeout(() => {
         window.parent.postMessage({ action: 'appReady' }, '*');
         console.log("Sent appReady message to parent");
-      }, 500);
+      }, 1000);
     }
     
     return () => {
@@ -61,8 +61,8 @@ const InstagramChatIntegration: React.FC = () => {
       console.log("Deploying agent with config:", config);
       
       // Validate time and message limits
-      const timeLimit = config.time_limit || 60; // Default 60 minutes
-      const messageCount = config.message_count || 1; // Default 1 message
+      const timeLimit = config.time_limit || 60;
+      const messageCount = config.message_count || 1;
       
       if (timeLimit > 240) {
         toast({
@@ -139,13 +139,23 @@ const InstagramChatIntegration: React.FC = () => {
     }
   };
   
-  // Show a status message when running in extension context but drawer is closed
+  // Only show status when not in drawer mode
   if (isExtensionContext && !isDrawerOpen) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Frankie AI Ready</h2>
-          <p className="text-gray-600">Click "Deploy Frankie" button on Instagram to configure your AI agent.</p>
+      <div className="flex items-center justify-center min-h-screen p-4 bg-white">
+        <div className="text-center max-w-md">
+          <div className="mb-6">
+            <img 
+              src="/assets/icon48.png" 
+              alt="Frankie AI" 
+              className="h-16 w-16 mx-auto mb-4"
+            />
+          </div>
+          <h2 className="text-2xl font-bold mb-3 text-gray-800">Frankie AI Ready</h2>
+          <p className="text-gray-600 mb-4">Click the "Deploy Frankie" button on Instagram to configure your AI agent.</p>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-700">Extension is loaded and waiting for Instagram chat interaction.</p>
+          </div>
         </div>
       </div>
     );

@@ -1,31 +1,57 @@
 // Content script for the Frankie AI extension
 console.log('Frankie AI content script loaded');
 
-// Import the conversation bot service
-let ConversationInstance;
-
-// State
-let activeAgents = new Map();
-let chatObservers = new Map();
-let sidebar = null;
+// Import conversation service
 let conversationInstances = new Map();
 
 // Main function to initialize the extension
 function initializeFrankieAI() {
   console.log('Initializing Frankie AI for Instagram');
   
-  // Check if we're on a direct message page
-  if (window.location.href.includes('/direct/') || window.location.href.includes('/messages/')) {
-    console.log('Instagram messages page detected, initializing Frankie AI features');
-    
-    // Set up MutationObserver to detect when text areas appear
-    observeTextAreas();
-    
-    // Initial scan for existing text areas
-    injectDeployButtons();
-  } else {
-    console.log('Not on Instagram messages page, skipping button injection');
-  }
+  // Load the chatBotService
+  loadChatBotService().then(() => {
+    // Check if we're on a direct message page
+    if (window.location.href.includes('/direct/') || window.location.href.includes('/messages/')) {
+      console.log('Instagram messages page detected, initializing Frankie AI features');
+      
+      // Set up MutationObserver to detect when text areas appear
+      observeTextAreas();
+      
+      // Initial scan for existing text areas
+      injectDeployButtons();
+    } else {
+      console.log('Not on Instagram messages page, skipping button injection');
+    }
+  }).catch(error => {
+    console.error('Failed to load conversation service:', error);
+  });
+}
+
+// Load chatBotService.js dynamically
+async function loadChatBotService() {
+  return new Promise((resolve, reject) => {
+    if (window.ConversationInstance) {
+      console.log('ConversationInstance already available');
+      resolve();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = chrome.runtime.getURL('chatBotService.js');
+    script.onload = () => {
+      console.log('chatBotService.js loaded successfully');
+      if (window.ConversationInstance) {
+        resolve();
+      } else {
+        reject(new Error('ConversationInstance not found after loading script'));
+      }
+    };
+    script.onerror = (error) => {
+      console.error('Failed to load chatBotService.js:', error);
+      reject(error);
+    };
+    document.head.appendChild(script);
+  });
 }
 
 // Observe the DOM for changes to detect new text areas
@@ -218,7 +244,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ success: true });
   }
   
-  return true; // Keep channel open for async response
+  return true;
 });
 
 // Create and open the sidebar
@@ -234,28 +260,31 @@ function openSidebar(chatData = null) {
     sidebar.style.position = 'fixed';
     sidebar.style.top = '0';
     sidebar.style.right = '0';
-    sidebar.style.width = '320px';
+    sidebar.style.width = '400px';
     sidebar.style.height = '100%';
     sidebar.style.backgroundColor = 'white';
     sidebar.style.boxShadow = '-2px 0 10px rgba(0, 0, 0, 0.1)';
     sidebar.style.zIndex = '9999';
     sidebar.style.transition = 'transform 0.3s ease';
     sidebar.style.transform = 'translateX(100%)';
+    sidebar.style.border = '1px solid #e5e5e5';
     
     // Create iframe to load our React app
     const iframe = document.createElement('iframe');
     iframe.style.width = '100%';
     iframe.style.height = '100%';
     iframe.style.border = 'none';
+    iframe.allow = 'clipboard-read; clipboard-write';
     
     // Get the correct extension URL
     const extensionURL = chrome.runtime.getURL('index.html');
     console.log('Loading extension URL in iframe:', extensionURL);
     
-    // Ensure the iframe loads correctly
+    // Set up iframe event handlers
     iframe.onload = function() {
       console.log('Iframe loaded successfully');
-      // Wait a bit longer for React app to initialize
+      
+      // Wait for React app to initialize
       setTimeout(() => {
         console.log('Attempting to send message to iframe');
         try {
@@ -269,14 +298,14 @@ function openSidebar(chatData = null) {
         } catch (error) {
           console.error('Error sending message to iframe:', error);
         }
-      }, 2000); // Increased delay
+      }, 2000);
     };
 
     iframe.onerror = function(error) {
       console.error('Error loading iframe:', error);
     };
     
-    // Set the source after setting up event handlers
+    // Set the source
     iframe.src = extensionURL;
     
     sidebar.appendChild(iframe);
@@ -298,11 +327,11 @@ function openSidebar(chatData = null) {
     }
   }
   
-  // Show sidebar with a slight delay to ensure smooth animation
+  // Show sidebar
   setTimeout(() => {
     sidebar.style.transform = 'translateX(0)';
     console.log('Sidebar animation started');
-  }, 100); // Slightly longer delay
+  }, 100);
   
   // Add close button
   addSidebarCloseButton(sidebar);
@@ -368,7 +397,7 @@ function deployAgent(config) {
   // Create conversation instance
   const instanceId = `agent-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   
-  // Use the global ConversationInstance from chatBotService.js
+  // Use the global ConversationInstance
   if (window.ConversationInstance) {
     try {
       const instance = new window.ConversationInstance(chatInput, instanceId);
@@ -380,6 +409,12 @@ function deployAgent(config) {
       instance.startConversation(config);
       
       console.log(`Agent ${instanceId} deployed successfully`);
+      
+      // Close the sidebar
+      const sidebar = document.getElementById('frankie-sidebar');
+      if (sidebar) {
+        sidebar.style.transform = 'translateX(100%)';
+      }
     } catch (error) {
       console.error('Failed to create conversation instance:', error);
     }

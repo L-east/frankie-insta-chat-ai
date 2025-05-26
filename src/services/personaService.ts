@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthStore } from "@/store/authStore";
 
@@ -26,7 +27,7 @@ export const createPersonaDeployment = async (deploymentData: PersonaDeploymentD
     user_id: user.id,
     flag_keywords: deploymentData.flag_keywords && deploymentData.flag_keywords.length > 0 
       ? deploymentData.flag_keywords.join(',') 
-      : undefined
+      : null
   };
 
   const { data, error } = await supabase
