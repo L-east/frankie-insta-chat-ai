@@ -9,16 +9,19 @@ import PersonaCard from './PersonaCard';
 import PersonaDetail from './PersonaDetail';
 import SettingsRefactored from './SettingsRefactored';
 import Auth from './Auth';
+import AgentConfigDrawer from './AgentConfigDrawer';
 import { getUserAgentsUsage } from '@/services/personaService';
 import { useAuthStore } from '@/store/authStore';
-import { MESSAGE_PACKAGES } from '@/services/personaService';
+import { PRICING_CONFIG } from '@/services/personaService';
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  chatData?: any;
+  onDeploy?: (config: any) => void;
 }
 
-const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
+const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
   const { user, profile } = useAuth();
   const { personas, selectPersona, selectedPersonaId, getSelectedPersona, deselectPersona } = usePersonaStore();
   const [showSettings, setShowSettings] = useState(false);
@@ -26,6 +29,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const [agentsUsage, setAgentsUsage] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("personas");
   const [deploymentHistory, setDeploymentHistory] = useState<any[]>([]);
+  const [showAgentConfig, setShowAgentConfig] = useState(false);
   const { signOut } = useAuth();
   
   const isAuthenticated = !!user;
@@ -35,7 +39,20 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       fetchAgentsUsage();
       fetchDeploymentHistory();
     }
+    
+    // Show history tab if user has deployments, otherwise show personas
+    if (deploymentHistory.length > 0) {
+      setActiveTab("history");
+    } else {
+      setActiveTab("personas");
+    }
   }, [isAuthenticated, profile]);
+
+  useEffect(() => {
+    if (chatData && onDeploy) {
+      setShowAgentConfig(true);
+    }
+  }, [chatData, onDeploy]);
 
   const fetchAgentsUsage = async () => {
     try {
@@ -86,7 +103,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     if (!agentsUsage) return null;
     
     const messagesUsed = agentsUsage.free_messages_used || 0;
-    const messagesQuota = agentsUsage.free_messages_quota || 100;
+    const messagesQuota = agentsUsage.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES;
     const expiryDate = agentsUsage.free_messages_expiry 
       ? new Date(agentsUsage.free_messages_expiry) 
       : null;
@@ -106,9 +123,22 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     };
   };
 
+  if (showAgentConfig && chatData && onDeploy) {
+    return (
+      <div className="h-full w-full bg-white">
+        <AgentConfigDrawer 
+          isOpen={true}
+          onClose={() => setShowAgentConfig(false)}
+          chatData={chatData}
+          onDeploy={onDeploy}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className={`fixed right-0 top-0 h-full w-80 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col z-50`}>
-      {/* Top Layer - Logo and Dismiss */}
+    <div className={`${isOpen ? 'block' : 'hidden'} h-full w-full bg-white shadow-lg flex flex-col`}>
+      {/* Header */}
       <div className="p-4 border-b flex justify-between items-center">
         <div className="flex items-center space-x-2">
           <img 
@@ -118,12 +148,14 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           />
           <h1 className="text-lg font-bold">Frankie AI</h1>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose}>
-          <X size={18} />
-        </Button>
+        {onClose !== (() => {}) && (
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X size={18} />
+          </Button>
+        )}
       </div>
 
-      {/* User Greeting and Actions */}
+      {/* User section */}
       <div className="p-4 border-b">
         <div className="flex justify-between items-center">
           <div>
@@ -156,7 +188,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           <div className="mt-2">
             <div className="flex justify-between text-xs text-gray-600">
               <span>Messages:</span>
-              <span>{agentsUsage.free_messages_used || 0}/{agentsUsage.free_messages_quota || 100}</span>
+              <span>{agentsUsage.free_messages_used || 0}/{agentsUsage.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES}</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
               <div 
@@ -202,14 +234,41 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               
               <div className="p-4">
                 <TabsContent value="personas" className="space-y-4 mt-0">
-                  {personas.map((persona) => (
-                    <PersonaCard 
-                      key={persona.id}
-                      persona={persona}
-                      onClick={() => selectPersona(persona.id)}
-                      layout="horizontal"
-                    />
-                  ))}
+                  {!isAuthenticated ? (
+                    <div className="text-center py-8">
+                      <div className="mb-4">
+                        <img 
+                          src="/assets/icon48.png" 
+                          alt="Frankie AI" 
+                          className="h-16 w-16 mx-auto mb-4"
+                        />
+                      </div>
+                      <h3 className="text-lg font-semibold mb-2">Welcome to Frankie AI</h3>
+                      <p className="text-gray-600 mb-4 text-sm">
+                        Deploy AI personas to handle your Instagram conversations with style.
+                      </p>
+                      <div className="space-y-2 text-sm text-gray-500">
+                        <p>✨ 4 unique AI personas</p>
+                        <p>📱 {PRICING_CONFIG.FREE_MESSAGES} free messages</p>
+                        <p>⚡ One-click deployment</p>
+                      </div>
+                      <Button 
+                        onClick={() => setShowAuth(true)}
+                        className="mt-4 bg-frankiePurple hover:bg-frankiePurple-dark w-full"
+                      >
+                        Get Started
+                      </Button>
+                    </div>
+                  ) : (
+                    personas.map((persona) => (
+                      <PersonaCard 
+                        key={persona.id}
+                        persona={persona}
+                        onClick={() => selectPersona(persona.id)}
+                        layout="horizontal"
+                      />
+                    ))
+                  )}
                 </TabsContent>
                 
                 <TabsContent value="history" className="space-y-4 mt-0">
@@ -217,10 +276,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     <div className="space-y-3">
                       {deploymentHistory
                         .sort((a, b) => {
-                          // First sort by status (active first)
                           if (a.status === 'active' && b.status !== 'active') return -1;
                           if (a.status !== 'active' && b.status === 'active') return 1;
-                          // Then sort by created_at
                           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
                         })
                         .map((deployment) => (
@@ -248,7 +305,17 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     </div>
                   ) : (
                     <div className="text-center py-8 text-gray-500">
-                      No deployment history yet
+                      {isAuthenticated ? (
+                        <div>
+                          <MessageCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                          <p>No deployment history yet</p>
+                          <p className="text-sm mt-1">Deploy your first agent to see it here</p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p>Login to view your deployment history</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </TabsContent>

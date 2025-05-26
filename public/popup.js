@@ -1,21 +1,19 @@
 
 document.addEventListener('DOMContentLoaded', function() {
-  // Get the dashboard button
-  const dashboardBtn = document.getElementById('dashboardBtn');
+  const openSidebarBtn = document.getElementById('openSidebar');
   
-  // Always set text to "Open Frankie" for consistency
-  if (dashboardBtn) {
-    dashboardBtn.textContent = 'Open Frankie';
+  openSidebarBtn.addEventListener('click', async function() {
+    // Get the current active tab
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
-    // Add click listener
-    dashboardBtn.addEventListener('click', function() {
-      // Send message to background script
-      chrome.runtime.sendMessage({ action: 'openDashboard' }, function(response) {
-        console.log('Response from background:', response);
-        
-        // Close popup after sending message
-        window.close();
-      });
-    });
-  }
+    if (tab && tab.url && tab.url.includes('instagram.com')) {
+      // Send message to content script to open sidebar
+      chrome.tabs.sendMessage(tab.id, { action: 'openSidebar' });
+      window.close(); // Close popup
+    } else {
+      // If not on Instagram, navigate there first
+      chrome.tabs.create({ url: 'https://www.instagram.com' });
+      window.close();
+    }
+  });
 });

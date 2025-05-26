@@ -1,20 +1,16 @@
 
 import React, { useEffect, useState } from 'react';
-import AgentConfigDrawer from './AgentConfigDrawer';
 import { toast } from "@/components/ui/use-toast";
 import { incrementMessageUsed } from '@/services/personaService';
 import { useAuthStore } from '@/store/authStore';
+import Sidebar from './Sidebar';
 
 const InstagramChatIntegration: React.FC = () => {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [currentChatData, setCurrentChatData] = useState<any>(null);
-  const [activeAgentChats, setActiveAgentChats] = useState<Set<string>>(new Set());
   const [isExtensionContext, setIsExtensionContext] = useState(false);
   const { user } = useAuthStore();
   
-  // Listen for messages from the content script
   useEffect(() => {
-    // Check if we're running in an extension context
     const isInExtension = window !== window.parent || 
                          window.location.protocol === 'chrome-extension:' ||
                          window.location.href.includes('chrome-extension://');
@@ -28,21 +24,14 @@ const InstagramChatIntegration: React.FC = () => {
       if (event.data.action === 'openAgentConfig' && event.data.chatData) {
         const { chatData } = event.data;
         console.log("Opening agent config with chat data:", chatData);
-        
-        // Store current chat data
         setCurrentChatData(chatData);
-        
-        // Open config drawer
-        setIsDrawerOpen(true);
       }
     };
 
     window.addEventListener('message', handleMessage);
     console.log("InstagramChatIntegration: Message listener set up");
     
-    // Send ready message to content script if in extension context
     if (isInExtension && window.parent && window.parent !== window) {
-      // Small delay to ensure content script is ready
       setTimeout(() => {
         window.parent.postMessage({ action: 'appReady' }, '*');
         console.log("Sent appReady message to parent");
@@ -55,12 +44,10 @@ const InstagramChatIntegration: React.FC = () => {
     };
   }, []);
   
-  // Handle agent deployment after configuration
   const handleAgentDeploy = async (config: any) => {
     try {
       console.log("Deploying agent with config:", config);
       
-      // Validate time and message limits
       const timeLimit = config.time_limit || 60;
       const messageCount = config.message_count || 1;
       
@@ -82,14 +69,6 @@ const InstagramChatIntegration: React.FC = () => {
         return;
       }
       
-      // Add to active chats
-      setActiveAgentChats(prev => {
-        const updated = new Set(prev);
-        updated.add(config.chatData.chatId);
-        return updated;
-      });
-      
-      // Update message usage if user is authenticated
       if (user) {
         try {
           await incrementMessageUsed();
@@ -98,7 +77,6 @@ const InstagramChatIntegration: React.FC = () => {
         }
       }
       
-      // Send enhanced config with limits to content script
       const enhancedConfig = {
         ...config,
         time_limit: timeLimit,
@@ -106,7 +84,6 @@ const InstagramChatIntegration: React.FC = () => {
         start_time: Date.now()
       };
       
-      // Send message back to content script
       if (isExtensionContext && window.parent && window.parent !== window) {
         try {
           window.parent.postMessage({
@@ -118,17 +95,13 @@ const InstagramChatIntegration: React.FC = () => {
         } catch (error) {
           console.error("Error sending message to parent:", error);
         }
-      } else {
-        console.log("Not in extension context or no parent window found");
       }
       
       toast({
         title: "Agent Deployed",
-        description: `${config.persona.name} is now active in ${config.scope === 'current' ? 'the current chat' : 'all chats'}.`,
+        description: `${config.persona.name} is now active in the chat.`,
       });
       
-      // Close the drawer
-      setIsDrawerOpen(false);
     } catch (error) {
       console.error('Failed to deploy agent:', error);
       toast({
@@ -139,41 +112,20 @@ const InstagramChatIntegration: React.FC = () => {
     }
   };
   
-  // Only show status when not in drawer mode
-  if (isExtensionContext && !isDrawerOpen) {
+  if (isExtensionContext) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-4 bg-white">
-        <div className="text-center max-w-md">
-          <div className="mb-6">
-            <img 
-              src="/assets/icon48.png" 
-              alt="Frankie AI" 
-              className="h-16 w-16 mx-auto mb-4"
-            />
-          </div>
-          <h2 className="text-2xl font-bold mb-3 text-gray-800">Frankie AI Ready</h2>
-          <p className="text-gray-600 mb-4">Click the "Deploy Frankie" button on Instagram to configure your AI agent.</p>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-700">Extension is loaded and waiting for Instagram chat interaction.</p>
-          </div>
-        </div>
+      <div className="h-screen w-full bg-white">
+        <Sidebar 
+          isOpen={true} 
+          onClose={() => {}} 
+          chatData={currentChatData}
+          onDeploy={handleAgentDeploy}
+        />
       </div>
     );
   }
   
-  return (
-    <>
-      <AgentConfigDrawer 
-        isOpen={isDrawerOpen}
-        onClose={() => {
-          setIsDrawerOpen(false);
-          console.log("Closing agent config drawer");
-        }}
-        chatData={currentChatData}
-        onDeploy={handleAgentDeploy}
-      />
-    </>
-  );
+  return null;
 };
 
 export default InstagramChatIntegration;

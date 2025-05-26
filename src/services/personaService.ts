@@ -150,15 +150,22 @@ export interface MessagePackage {
   price: number;
 }
 
-export const MESSAGE_PACKAGES: MessagePackage[] = [
-  { count: 10, price: 0.10 },
-  { count: 50, price: 0.50 },
-  { count: 100, price: 1.00 },
-  { count: 200, price: 2.00 },
-  { count: 500, price: 5.00 },
-  { count: 1000, price: 10.00 },
-  { count: 5000, price: 50.00 },
-];
+// Configurable pricing parameters
+export const PRICING_CONFIG = {
+  FREE_MESSAGES: 100,
+  MESSAGE_PRICE_CENTS: 1, // 1 cent per message
+  MESSAGE_VALIDITY_DAYS: 30,
+  PACKAGES: [
+    { count: 10, price: 0.10 },
+    { count: 50, price: 0.50 },
+    { count: 100, price: 1.00 },
+    { count: 200, price: 2.00 },
+    { count: 500, price: 5.00 },
+    { count: 1000, price: 10.00 },
+    { count: 5000, price: 50.00 },
+  ] as MessagePackage[]
+};
 
-export const FREE_MESSAGES = 100;
-export const MESSAGE_EXPIRY_DAYS = 30;
+export const MESSAGE_PACKAGES: MessagePackage[] = PRICING_CONFIG.PACKAGES;
+export const FREE_MESSAGES = PRICING_CONFIG.FREE_MESSAGES;
+export const MESSAGE_EXPIRY_DAYS = PRICING_CONFIG.MESSAGE_VALIDITY_DAYS;
