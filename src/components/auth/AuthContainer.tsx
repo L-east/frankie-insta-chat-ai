@@ -2,12 +2,9 @@
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from '@/contexts/AuthContext';
-import { Provider } from '@supabase/supabase-js';
 import LoginForm from './LoginForm';
 import SignupForm from './SignupForm';
 import ForgotPasswordForm from './ForgotPasswordForm';
-import SocialAuthButtons from './SocialAuthButtons';
-import AuthDivider from './AuthDivider';
 
 interface AuthContainerProps {
   isOpen: boolean;
@@ -23,7 +20,7 @@ const AuthContainer: React.FC<AuthContainerProps> = ({ isOpen, onClose }) => {
   const [errors, setErrors] = useState<{email?: string; password?: string; confirmPassword?: string; name?: string}>({});
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   
-  const { signIn, signUp, resetPassword, signInWithSocialProvider, isLoading } = useAuth();
+  const { signIn, signUp, resetPassword, isLoading } = useAuth();
 
   const validate = () => {
     const newErrors: {email?: string; password?: string; confirmPassword?: string; name?: string} = {};
@@ -58,17 +55,7 @@ const AuthContainer: React.FC<AuthContainerProps> = ({ isOpen, onClose }) => {
       }
       onClose();
     } catch (error) {
-      // Errors are handled in the auth context
       console.error("Authentication error:", error);
-    }
-  };
-
-  const handleSocialSignIn = async (provider: Provider) => {
-    try {
-      await signInWithSocialProvider(provider);
-    } catch (error) {
-      // Errors are handled in the auth context
-      console.error(`${provider} authentication error:`, error);
     }
   };
 
@@ -82,7 +69,6 @@ const AuthContainer: React.FC<AuthContainerProps> = ({ isOpen, onClose }) => {
       await resetPassword(email);
       setShowForgotPassword(false);
     } catch (error) {
-      // Errors are handled in the auth context
       console.error("Reset password error:", error);
     }
   };
@@ -139,13 +125,6 @@ const AuthContainer: React.FC<AuthContainerProps> = ({ isOpen, onClose }) => {
                 isLoading={isLoading}
               />
             )}
-            
-            <AuthDivider />
-            
-            <SocialAuthButtons 
-              handleSocialSignIn={handleSocialSignIn} 
-              isLoading={isLoading} 
-            />
           </>
         )}
       </DialogContent>

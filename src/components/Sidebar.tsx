@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Settings, X, LogOut, Clock, User, MessageCircle } from "lucide-react";
+import { Settings, X, LogOut, Clock, User, MessageCircle, Info } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { usePersonaStore } from "@/store/personaStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -29,7 +29,6 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
   const [agentsUsage, setAgentsUsage] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("personas");
   const [deploymentHistory, setDeploymentHistory] = useState<any[]>([]);
-  const [showAgentConfig, setShowAgentConfig] = useState(false);
   const { signOut } = useAuth();
   
   const isAuthenticated = !!user;
@@ -40,19 +39,12 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
       fetchDeploymentHistory();
     }
     
-    // Show history tab if user has deployments, otherwise show personas
     if (deploymentHistory.length > 0) {
       setActiveTab("history");
     } else {
       setActiveTab("personas");
     }
   }, [isAuthenticated, profile]);
-
-  useEffect(() => {
-    if (chatData && onDeploy) {
-      setShowAgentConfig(true);
-    }
-  }, [chatData, onDeploy]);
 
   const fetchAgentsUsage = async () => {
     try {
@@ -73,6 +65,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
       const { data, error } = await supabase
         .from('persona_deployments')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
@@ -123,12 +116,13 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
     };
   };
 
-  if (showAgentConfig && chatData && onDeploy) {
+  // Show AgentConfigDrawer as full sidebar when configuring
+  if (chatData && onDeploy) {
     return (
-      <div className="h-full w-full bg-white">
+      <div className={`${isOpen ? 'block' : 'hidden'} h-full w-full bg-white shadow-lg flex flex-col`}>
         <AgentConfigDrawer 
           isOpen={true}
-          onClose={() => setShowAgentConfig(false)}
+          onClose={onClose}
           chatData={chatData}
           onDeploy={onDeploy}
         />
@@ -148,11 +142,9 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
           />
           <h1 className="text-lg font-bold">Frankie AI</h1>
         </div>
-        {onClose !== (() => {}) && (
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X size={18} />
-          </Button>
-        )}
+        <Button variant="ghost" size="icon" onClick={onClose}>
+          <X size={18} />
+        </Button>
       </div>
 
       {/* User section */}
@@ -160,7 +152,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
         <div className="flex justify-between items-center">
           <div>
             {isAuthenticated ? (
-              <p className="font-medium">Hello, {profile?.name || user.email.split('@')[0]}</p>
+              <p className="font-medium">Hello, {profile?.name || user.email?.split('@')[0] || 'User'}</p>
             ) : (
               <Button 
                 variant="ghost" 
@@ -248,7 +240,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                         Deploy AI personas to handle your Instagram conversations with style.
                       </p>
                       <div className="space-y-2 text-sm text-gray-500">
-                        <p>✨ 4 unique AI personas</p>
+                        <p>✨ 5 unique AI personas</p>
                         <p>📱 {PRICING_CONFIG.FREE_MESSAGES} free messages</p>
                         <p>⚡ One-click deployment</p>
                       </div>
@@ -260,14 +252,26 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                       </Button>
                     </div>
                   ) : (
-                    personas.map((persona) => (
-                      <PersonaCard 
-                        key={persona.id}
-                        persona={persona}
-                        onClick={() => selectPersona(persona.id)}
-                        layout="horizontal"
-                      />
-                    ))
+                    <>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                        <div className="flex items-start space-x-2">
+                          <Info size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div className="text-sm text-blue-800">
+                            <p className="font-medium mb-1">How to deploy Frankie</p>
+                            <p>Go to any Instagram chat and click the "Deploy Frankie" button to select and deploy a persona for that conversation.</p>
+                          </div>
+                        </div>
+                      </div>
+                      {personas.map((persona) => (
+                        <PersonaCard 
+                          key={persona.id}
+                          persona={persona}
+                          onClick={() => {}} // Non-clickable for awareness
+                          layout="horizontal"
+                          readonly={true}
+                        />
+                      ))}
+                    </>
                   )}
                 </TabsContent>
                 
@@ -308,8 +312,16 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                       {isAuthenticated ? (
                         <div>
                           <MessageCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                          <p>No deployment history yet</p>
-                          <p className="text-sm mt-1">Deploy your first agent to see it here</p>
+                          <p className="font-medium mb-2">No deployment history yet</p>
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-left">
+                            <div className="flex items-start space-x-2">
+                              <Info size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
+                              <div className="text-sm text-blue-800">
+                                <p className="font-medium mb-1">How to deploy Frankie</p>
+                                <p>Go to any Instagram chat and click the "Deploy Frankie" button to select and deploy a persona for that conversation.</p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       ) : (
                         <div>
@@ -325,9 +337,9 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
         )}
       </div>
       
-      {/* Footer */}
+      {/* Footer - Empty as requested */}
       <div className="p-4 border-t text-center">
-        <p className="text-xs text-frankieGray">© 2025 Frankie AI - v1.0.0</p>
+        <p className="text-xs text-frankieGray"></p>
       </div>
       
       {/* Auth modal */}
