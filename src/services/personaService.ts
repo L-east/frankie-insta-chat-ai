@@ -152,13 +152,17 @@ export interface MessagePackage {
 
 // Configurable pricing parameters
 export const PRICING_CONFIG = {
-  FREE_MESSAGES: 10,
-  MESSAGE_PRICE_CENTS: 10, // 10 cents per message
+  FREE_MESSAGES: 100,
+  MESSAGE_PRICE_CENTS: 1, // 1 cent per message
   MESSAGE_VALIDITY_DAYS: 30,
   PACKAGES: [
-    { count: 10, price: 1.00 },
-    { count: 50, price: 5.00 },
-    { count: 100, price: 10.00 },
+    { count: 10, price: 0.10 },
+    { count: 50, price: 0.50 },
+    { count: 100, price: 1.00 },
+    { count: 200, price: 2.00 },
+    { count: 500, price: 5.00 },
+    { count: 1000, price: 10.00 },
+    { count: 5000, price: 50.00 },
   ] as MessagePackage[]
 };
 

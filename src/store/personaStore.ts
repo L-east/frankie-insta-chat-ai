@@ -27,7 +27,7 @@ export const usePersonaStore = create<PersonaState>((set, get) => ({
     {
       id: 'casanova',
       name: 'Casanova',
-      description: 'Romantic, charming, and flirtatious - perfect for dating conversations',
+      description: 'Romantic, charming, and flirtatious',
       avatar: '/persona-avatars/casanova.jpg',
       isPremium: false,
       perspective: '1st',
@@ -37,7 +37,7 @@ export const usePersonaStore = create<PersonaState>((set, get) => ({
     {
       id: 'cleopatra',
       name: 'Cleopatra',
-      description: 'Regal, commanding, and seductive - brings power and elegance',
+      description: 'Regal, commanding, and seductive',
       avatar: '/persona-avatars/cleopatra.jpg',
       isPremium: false,
       perspective: '1st',
@@ -47,7 +47,7 @@ export const usePersonaStore = create<PersonaState>((set, get) => ({
     {
       id: 'gentleman',
       name: 'Gentleman',
-      description: 'Polite, sophisticated, and well-mannered - classic charm',
+      description: 'Polite, sophisticated, and well-mannered',
       avatar: '/persona-avatars/gentleman.jpg', 
       isPremium: false,
       perspective: '1st',
@@ -57,7 +57,7 @@ export const usePersonaStore = create<PersonaState>((set, get) => ({
     {
       id: 'funny-guy',
       name: 'Funny Guy',
-      description: 'Humorous, witty, and entertaining - keeps conversations light',
+      description: 'Humorous, witty, and entertaining',
       avatar: '/persona-avatars/funny-guy.jpg',
       isPremium: false,
       perspective: '1st',
@@ -67,7 +67,7 @@ export const usePersonaStore = create<PersonaState>((set, get) => ({
     {
       id: 'icebreaker',
       name: 'Icebreaker',
-      description: 'Conversation starter and social catalyst - breaks the ice naturally',
+      description: 'Conversation starter and social catalyst',
       avatar: '/persona-avatars/icebreaker.jpg',
       isPremium: false,
       perspective: '1st',

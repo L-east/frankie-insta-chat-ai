@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, CreditCard, Lock } from "lucide-react";
+import { ArrowLeft, CheckCircle, CreditCard, Lock } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,7 +21,7 @@ interface PaymentPageProps {
 }
 
 const PaymentPage: React.FC<PaymentPageProps> = ({ onBack, onSuccess }) => {
-  const [selectedPackage, setSelectedPackage] = useState<number>(0); // Default to 10 messages
+  const [selectedPackage, setSelectedPackage] = useState<number>(2); // Default to 100 messages
   const [loading, setLoading] = useState(false);
   const [paypalLoaded, setPaypalLoaded] = useState(false);
   const { user } = useAuthStore();
@@ -101,12 +101,17 @@ const PaymentPage: React.FC<PaymentPageProps> = ({ onBack, onSuccess }) => {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <h1 className="text-2xl font-bold">Purchase Messages</h1>
+        <h1 className="text-2xl font-bold">Purchase Frankie AI Messages</h1>
         <p className="text-gray-600">Messages are valid for {PRICING_CONFIG.MESSAGE_VALIDITY_DAYS} days from purchase</p>
-        <p className="text-sm text-gray-500 mt-1">Price: {PRICING_CONFIG.MESSAGE_PRICE_CENTS} cents per message</p>
+        <p className="text-sm text-gray-500 mt-1">Price: {PRICING_CONFIG.MESSAGE_PRICE_CENTS} cent per message</p>
       </div>
       
       <div className="space-y-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h3 className="font-medium text-blue-800 mb-2">Free Messages Included</h3>
+          <p className="text-blue-700 text-sm">New users get {PRICING_CONFIG.FREE_MESSAGES} free messages to start with!</p>
+        </div>
+
         <div className="bg-gray-50 p-6 rounded-lg border">
           <h2 className="text-lg font-bold mb-4">Choose your message package</h2>
           
@@ -163,8 +168,25 @@ const PaymentPage: React.FC<PaymentPageProps> = ({ onBack, onSuccess }) => {
           </div>
         </div>
       </div>
+      
+      <div className="mt-8 space-y-4">
+        <h3 className="font-medium">Why purchase messages?</h3>
+        <div className="space-y-2">
+          <BenefitItem text="Deploy personalized AI agents to chat on your behalf" />
+          <BenefitItem text="Save time while maintaining authentic conversations" />
+          <BenefitItem text="Each message package gives you full access to all personas" />
+          <BenefitItem text="Messages can be used across any chat platform" />
+        </div>
+      </div>
     </div>
   );
 };
+
+const BenefitItem = ({ text }: { text: string }) => (
+  <div className="flex items-center">
+    <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
+    <span>{text}</span>
+  </div>
+);
 
 export default PaymentPage;
