@@ -39,6 +39,6 @@
     "128": "assets/icon128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' https://cdn.gpteng.co; object-src 'self'"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval' https://cdn.gpteng.co; object-src 'self'"
   }
 }

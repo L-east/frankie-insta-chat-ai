@@ -160,15 +160,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setProfile(data);
       
-      // Update store user with profile data
+      // Update store user with profile data - mapping correct property names
       const currentUser = user;
       if (currentUser) {
         const extendedUser = {
           ...currentUser,
-          isPro: data?.is_pro || false,
-          freeAgentsUsed: data?.free_agents_used || 0,
-          freeAgentsTotal: data?.free_agents_total || 7,
-          freeExpiryDate: data?.free_expiry_date ? new Date(data.free_expiry_date) : undefined,
+          isPro: false, // No is_pro field in profiles table
+          freeAgentsUsed: 0, // No free_agents_used field in profiles table
+          freeAgentsTotal: 7, // Default value
+          freeExpiryDate: data?.free_messages_expiry ? new Date(data.free_messages_expiry) : undefined,
           freeMessagesUsed: data?.free_messages_used || 0,
           freeMessagesQuota: data?.free_messages_quota || 100,
           freeMessagesExpiry: data?.free_messages_expiry ? new Date(data.free_messages_expiry) : undefined
