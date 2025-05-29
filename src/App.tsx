@@ -1,40 +1,21 @@
-
-import React, { useState } from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router } from 'react-router-dom';
+import InstagramChatIntegration from './components/InstagramChatIntegration';
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from '@/contexts/AuthContext';
-import Sidebar from './components/Sidebar';
-import AuthCallback from './components/auth/AuthCallback';
-import ResetPassword from './components/auth/ResetPassword';
 import './App.css';
 
-const queryClient = new QueryClient();
-
-function App() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
+const App = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
-          <div className="App">
-            <Routes>
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route path="/auth/reset-password" element={<ResetPassword />} />
-              <Route path="/*" element={
-                <Sidebar 
-                  isOpen={sidebarOpen} 
-                  onClose={() => setSidebarOpen(false)} 
-                />
-              } />
-            </Routes>
-            <Toaster />
-          </div>
-        </Router>
-      </AuthProvider>
-    </QueryClientProvider>
+    <AuthProvider>
+      <Router>
+        <div className="App">
+          <InstagramChatIntegration />
+        </div>
+        <Toaster />
+      </Router>
+    </AuthProvider>
   );
-}
+};
 
 export default App;

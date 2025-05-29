@@ -1,5 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
+import { useAuthStore } from "@/store/authStore";
 
 export interface PersonaDeploymentData {
   persona_id: string;
@@ -15,7 +15,7 @@ export interface PersonaDeploymentData {
 }
 
 export const createPersonaDeployment = async (deploymentData: PersonaDeploymentData) => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = useAuthStore.getState().getUser();
   
   if (!user) {
     throw new Error("User must be authenticated to create a persona deployment");
@@ -31,16 +31,14 @@ export const createPersonaDeployment = async (deploymentData: PersonaDeploymentD
 
   const { data, error } = await supabase
     .from('persona_deployments')
-    .insert(dataWithUserId)
-    .select()
-    .single();
+    .insert(dataWithUserId);
 
   if (error) throw error;
   return data;
 };
 
 export const getUserDeployments = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = useAuthStore.getState().getUser();
   
   if (!user) {
     throw new Error("User must be authenticated to get deployments");
@@ -56,7 +54,21 @@ export const getUserDeployments = async () => {
   return data;
 };
 
+export const incrementAgentUsed = async () => {
+  const user = useAuthStore.getState().getUser();
+  
+  if (!user) {
+    throw new Error("User must be authenticated to increment agent usage");
+  }
+
+  const { error } = await supabase.rpc('increment_agents_used', { user_id: user.id });
+
+  if (error) throw error;
+  return true;
+};
+
 export const incrementMessageUsed = async () => {
+  const { supabase } = await import('@/integrations/supabase/client');
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) throw new Error('User not authenticated');
@@ -84,6 +96,7 @@ export const incrementMessageUsed = async () => {
 };
 
 export const addMessagesToQuota = async (messageCount: number) => {
+  const { supabase } = await import('@/integrations/supabase/client');
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) throw new Error('User not authenticated');
@@ -111,7 +124,7 @@ export const addMessagesToQuota = async (messageCount: number) => {
 };
 
 export const getUserAgentsUsage = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = useAuthStore.getState().getUser();
   
   if (!user) {
     throw new Error("User must be authenticated to get agent usage");
@@ -119,7 +132,7 @@ export const getUserAgentsUsage = async () => {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('free_messages_used, free_messages_quota, free_messages_expiry, total_messages_allocated, total_messages_used, total_messages_pending')
+    .select('free_agents_used, free_agents_total, free_expiry_date, free_messages_used, free_messages_quota, free_messages_expiry')
     .eq('id', user.id)
     .single();
 
@@ -128,7 +141,7 @@ export const getUserAgentsUsage = async () => {
 };
 
 export const getDeploymentHistory = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = useAuthStore.getState().getUser();
   
   if (!user) {
     throw new Error("User must be authenticated to get deployment history");
@@ -145,7 +158,7 @@ export const getDeploymentHistory = async () => {
 };
 
 export const getUserTransactions = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = useAuthStore.getState().getUser();
   
   if (!user) {
     throw new Error("User must be authenticated to get transactions");
@@ -172,6 +185,7 @@ export const PRICING_CONFIG = {
   MESSAGE_PRICE_CENTS: 10, // 10 cents per message
   MESSAGE_VALIDITY_DAYS: 30,
   PACKAGES: [
+    { count: 100, price: 0.01 },
     { count: 10, price: 1.00 },
     { count: 50, price: 5.00 },
     { count: 100, price: 10.00 },

@@ -2,7 +2,6 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User, Provider } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
-import { useAuthStore } from '@/store/authStore';
 
 interface AuthContextType {
   session: Session | null;
@@ -14,7 +13,6 @@ interface AuthContextType {
   signInWithSocialProvider: (provider: Provider) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  resendConfirmation: (email: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,82 +22,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const { setAuthContext, setUser: setStoreUser } = useAuthStore();
-
-  // Get the current origin - works for both localhost and extension
-  const getCurrentOrigin = () => {
-    if (typeof window !== 'undefined') {
-      // For Chrome extension
-      if (window.location.protocol === 'chrome-extension:') {
-        return window.location.origin;
-      }
-      // For web app
-      return window.location.origin;
-    }
-    return 'http://localhost:5173'; // fallback
-  };
-
-  const getRedirectUrl = (path: string) => {
-    const origin = getCurrentOrigin();
-    return `${origin}/#${path}`;
-  };
-
-  // Create context value
-  const contextValue = {
-    session,
-    user,
-    profile,
-    isLoading,
-    signUp: async (email: string, password: string, name: string) => { /* implementation stays same */ },
-    signIn: async (email: string, password: string) => { /* implementation stays same */ },
-    signInWithSocialProvider: async (provider: Provider) => { /* implementation stays same */ },
-    signOut: async () => { /* implementation stays same */ },
-    resetPassword: async (email: string) => { /* implementation stays same */ },
-    resendConfirmation: async (email: string) => { /* implementation stays same */ }
-  };
-
-  useEffect(() => {
-    // Set the auth context in the store
-    setAuthContext(contextValue);
-  }, [session, user, profile, isLoading]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
-        console.log('Auth state change:', event, currentSession?.user?.email);
-        
+      (event, currentSession) => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
-        // Update store user
+        // Defer Supabase calls with setTimeout to prevent deadlocks
         if (currentSession?.user) {
           setTimeout(() => {
             fetchUserProfile(currentSession.user.id);
           }, 0);
         } else {
           setProfile(null);
-          setStoreUser(null);
-        }
-        
-        // Handle email confirmation
-        if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
-          const user = currentSession?.user;
-          if (user && !user.email_confirmed_at) {
-            toast({
-              title: "Email confirmation required",
-              description: "Please check your email and click the confirmation link to complete your account setup.",
-              variant: "default",
-            });
-          }
-        }
-
-        // Handle password recovery
-        if (event === 'PASSWORD_RECOVERY') {
-          toast({
-            title: "Password recovery initiated",
-            description: "Please enter your new password below.",
-          });
         }
         
         if (event === 'SIGNED_IN') {
@@ -111,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .insert({
                   user_id: currentSession?.user.id,
                   device_info: navigator.userAgent,
-                  ip_address: null
+                  ip_address: null // IP is captured server-side for privacy
                 });
             } catch (error) {
               console.error('Error logging login history:', error);
@@ -159,22 +96,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setProfile(data);
-      
-      // Update store user with profile data - mapping correct property names
-      const currentUser = user;
-      if (currentUser) {
-        const extendedUser = {
-          ...currentUser,
-          isPro: false, // No is_pro field in profiles table
-          freeAgentsUsed: 0, // No free_agents_used field in profiles table
-          freeAgentsTotal: 7, // Default value
-          freeExpiryDate: data?.free_messages_expiry ? new Date(data.free_messages_expiry) : undefined,
-          freeMessagesUsed: data?.free_messages_used || 0,
-          freeMessagesQuota: data?.free_messages_quota || 100,
-          freeMessagesExpiry: data?.free_messages_expiry ? new Date(data.free_messages_expiry) : undefined
-        };
-        setStoreUser(extendedUser);
-      }
     } catch (error) {
       console.error('Error fetching user profile:', error);
       setProfile(null);
@@ -184,17 +105,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, name: string) => {
     setIsLoading(true);
     try {
-      const redirectUrl = getRedirectUrl('/auth/callback');
-      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            name,
-            display_name: name
-          },
-          emailRedirectTo: redirectUrl
+            name
+          }
         }
       });
 
@@ -211,26 +128,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: email,
             name: name,
             free_messages_quota: 10,
-            free_messages_used: 0,
-            total_messages_allocated: 10,
-            total_messages_pending: 10
+            free_messages_used: 0
           });
 
         if (profileError) {
-          console.error('Profile creation error:', profileError);
+          throw profileError;
         }
 
-        if (!data.user.email_confirmed_at) {
-          toast({
-            title: "Check your email!",
-            description: "We've sent you a confirmation link. Please click it to verify your account.",
-          });
-        } else {
-          toast({
-            title: "Account created!",
-            description: "Welcome to Frankie AI!",
-          });
-        }
+        toast({
+          title: "Account created!",
+          description: "Welcome to Frankie AI!",
+        });
       }
     } catch (error: any) {
       toast({
@@ -256,18 +164,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
 
-      if (data.user && !data.user.email_confirmed_at) {
-        toast({
-          title: "Email confirmation required",
-          description: "Please check your email and click the confirmation link.",
-          variant: "default",
-        });
-      } else {
-        toast({
-          title: "Welcome back!",
-          description: "You've successfully logged in.",
-        });
-      }
+      toast({
+        title: "Welcome back!",
+        description: "You've successfully logged in.",
+      });
     } catch (error: any) {
       toast({
         title: "Login failed",
@@ -283,18 +183,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithSocialProvider = async (provider: Provider) => {
     setIsLoading(true);
     try {
-      const redirectUrl = getRedirectUrl('/auth/callback');
-      
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: redirectUrl
+          redirectTo: window.location.origin
         }
       });
 
       if (error) {
         throw error;
       }
+      
+      // No success toast here as the page will redirect to provider
     } catch (error: any) {
       toast({
         title: "Social login failed",
@@ -313,11 +213,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         throw error;
       }
-      
-      toast({
-        title: "Signed out",
-        description: "You've been successfully signed out.",
-      });
     } catch (error: any) {
       toast({
         title: "Sign out failed",
@@ -332,10 +227,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resetPassword = async (email: string) => {
     setIsLoading(true);
     try {
-      const redirectUrl = getRedirectUrl('/auth/reset-password');
-      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
+        redirectTo: window.location.origin,
       });
 
       if (error) {
@@ -358,39 +251,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const resendConfirmation = async (email: string) => {
-    setIsLoading(true);
-    try {
-      const redirectUrl = getRedirectUrl('/auth/callback');
-      
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-        options: {
-          emailRedirectTo: redirectUrl
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: "Confirmation email sent",
-        description: "Please check your email for the confirmation link.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Failed to resend confirmation",
-        description: error.message || "An error occurred.",
-        variant: "destructive",
-      });
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const value = {
     session,
     user,
@@ -400,8 +260,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signInWithSocialProvider,
     signOut,
-    resetPassword,
-    resendConfirmation
+    resetPassword
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

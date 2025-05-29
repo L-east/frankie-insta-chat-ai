@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -7,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { usePersonaStore } from "@/store/personaStore";
 import { toast } from "@/components/ui/use-toast";
-import { createPersonaDeployment, PersonaDeploymentData, getUserAgentsUsage, incrementMessageUsed, PRICING_CONFIG } from '@/services/personaService';
+import { createPersonaDeployment, PersonaDeploymentData, incrementAgentUsed, getUserAgentsUsage, incrementMessageUsed, PRICING_CONFIG } from '@/services/personaService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -130,7 +129,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
       // Create deployment in database
       if (user) {
         await createPersonaDeployment(deploymentData);
-        await incrementMessageUsed();
+        await incrementAgentUsed();
       }
       
       // Send config to parent for handling the actual deployment
