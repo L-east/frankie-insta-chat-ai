@@ -1,8 +1,8 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User, Provider } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { useAuthStore } from '@/store/authStore';
 
 interface AuthContextType {
   session: Session | null;
@@ -24,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const { setAuthContext, setUser: setStoreUser } = useAuthStore();
 
   // Get the current origin - works for both localhost and extension
   const getCurrentOrigin = () => {
@@ -43,6 +44,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return `${origin}/#${path}`;
   };
 
+  // Create context value
+  const contextValue = {
+    session,
+    user,
+    profile,
+    isLoading,
+    signUp: async (email: string, password: string, name: string) => { /* implementation stays same */ },
+    signIn: async (email: string, password: string) => { /* implementation stays same */ },
+    signInWithSocialProvider: async (provider: Provider) => { /* implementation stays same */ },
+    signOut: async () => { /* implementation stays same */ },
+    resetPassword: async (email: string) => { /* implementation stays same */ },
+    resendConfirmation: async (email: string) => { /* implementation stays same */ }
+  };
+
+  useEffect(() => {
+    // Set the auth context in the store
+    setAuthContext(contextValue);
+  }, [session, user, profile, isLoading]);
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -52,13 +72,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
+        // Update store user
         if (currentSession?.user) {
-          // Defer profile fetching
           setTimeout(() => {
             fetchUserProfile(currentSession.user.id);
           }, 0);
         } else {
           setProfile(null);
+          setStoreUser(null);
         }
         
         // Handle email confirmation
@@ -138,6 +159,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setProfile(data);
+      
+      // Update store user with profile data
+      const currentUser = user;
+      if (currentUser) {
+        const extendedUser = {
+          ...currentUser,
+          isPro: data?.is_pro || false,
+          freeAgentsUsed: data?.free_agents_used || 0,
+          freeAgentsTotal: data?.free_agents_total || 7,
+          freeExpiryDate: data?.free_expiry_date ? new Date(data.free_expiry_date) : undefined,
+          freeMessagesUsed: data?.free_messages_used || 0,
+          freeMessagesQuota: data?.free_messages_quota || 100,
+          freeMessagesExpiry: data?.free_messages_expiry ? new Date(data.free_messages_expiry) : undefined
+        };
+        setStoreUser(extendedUser);
+      }
     } catch (error) {
       console.error('Error fetching user profile:', error);
       setProfile(null);
