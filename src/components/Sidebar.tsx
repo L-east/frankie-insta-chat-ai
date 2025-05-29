@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Settings, X, LogOut, Clock, User, MessageCircle, ChevronDown } from "lucide-react";
@@ -288,7 +289,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                             <div key={persona.id} className="border rounded-lg p-4">
                               <div className="flex items-start gap-4">
                                 <img 
-                                  src={persona.image_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
+                                  src={persona.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
                                   alt={persona.name} 
                                   className="h-12 w-12 rounded-full"
                                 />
@@ -356,7 +357,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                           <div key={persona.id} className="border rounded-lg p-4">
                             <div className="flex items-start gap-4">
                               <img 
-                                src={persona.image_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
+                                src={persona.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
                                 alt={persona.name} 
                                 className="h-12 w-12 rounded-full"
                               />

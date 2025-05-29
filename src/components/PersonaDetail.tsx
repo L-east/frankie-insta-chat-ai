@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +11,7 @@ import { ChevronLeft, Loader } from "lucide-react";
 import { Persona } from "@/store/personaStore";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "@/components/ui/use-toast";
-import { createPersonaDeployment, incrementAgentUsed, incrementMessageUsed } from '@/services/personaService';
+import { createPersonaDeployment, incrementMessageUsed } from '@/services/personaService';
 
 interface PersonaDetailProps {
   persona: Persona;
@@ -91,7 +92,7 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
       // Create deployment in database if user is logged in
       if (user) {
         await createPersonaDeployment(deploymentData);
-        await incrementAgentUsed();
+        await incrementMessageUsed();
       }
       
       // Send message to content script to deploy agent
