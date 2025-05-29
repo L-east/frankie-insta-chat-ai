@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Confirmation - Frankie AI</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f8f9fa;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        .logo {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 1rem;
+        }
+        h1 {
+            color: #7c3aed;
+            margin-bottom: 1rem;
+        }
+        p {
+            color: #4b5563;
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+        }
+        .success {
+            color: #059669;
+            font-weight: 500;
+        }
+        .error {
+            color: #dc2626;
+            font-weight: 500;
+        }
+        .button {
+            background: #7c3aed;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .button:hover {
+            background: #6d28d9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="https://raw.githubusercontent.com/yourusername/frankie-insta-chat-ai/main/public/assets/icon128.png" alt="Frankie AI" class="logo">
+        <h1>Email Confirmation</h1>
+        <div id="message"></div>
+        <a href="chrome-extension://dfmlaekbnhhjecdfmakaekblhholniof/popup.html" class="button">Return to Extension</a>
+    </div>
+
+    <script>
+        window.addEventListener('load', async function() {
+            const messageDiv = document.getElementById('message');
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            const type = urlParams.get('type');
+
+            if (!token || !type) {
+                messageDiv.innerHTML = '<p class="error">Invalid confirmation link. Please try again.</p>';
+                return;
+            }
+
+            try {
+                // Initialize Supabase client
+                const supabaseUrl = 'https://yfizikxjbncxbhwymxul.supabase.co';
+                const supabaseKey = 'YOUR_SUPABASE_ANON_KEY'; // Replace with your anon key
+                const { createClient } = supabase;
+                const supabase = createClient(supabaseUrl, supabaseKey);
+
+                // Verify the token
+                const { error } = await supabase.auth.verifyOtp({
+                    token_hash: token,
+                    type: type
+                });
+
+                if (error) throw error;
+
+                messageDiv.innerHTML = '<p class="success">Email confirmed successfully! You can now return to the extension.</p>';
+            } catch (error) {
+                messageDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+            }
+        });
+    </script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</body>
+</html> 

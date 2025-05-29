@@ -4,7 +4,10 @@
   "version": "1.0.0",
   "description": "Deploy AI agents to handle your conversations",
   "permissions": ["storage", "activeTab", "scripting", "tabs"],
-  "host_permissions": ["https://*.instagram.com/*"],
+  "host_permissions": [
+    "https://*.instagram.com/*",
+    "https://*.supabase.co/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
@@ -19,7 +22,7 @@
   "web_accessible_resources": [
     {
       "resources": ["index.html", "assets/*", "*.js", "*.css", "persona-avatars/*"],
-      "matches": ["https://*.instagram.com/*"]
+      "matches": ["https://*.instagram.com/*", "https://*.supabase.co/*"]
     }
   ],
   "action": {

@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User, Provider } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { emailTemplates } from '@/lib/emailTemplates';
+/// <reference types="chrome"/>
 
 interface AuthContextType {
   session: Session | null;
@@ -13,6 +15,8 @@ interface AuthContextType {
   signInWithSocialProvider: (provider: Provider) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
+  verifyConfirmationCode: (email: string, code: string) => Promise<void>;
+  verifyResetCode: (email: string, code: string, newPassword: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -111,7 +115,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         options: {
           data: {
             name
-          }
+          },
+          emailRedirectTo: 'https://frankiealive.github.io'
         }
       });
 
@@ -137,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         toast({
           title: "Account created!",
-          description: "Welcome to Frankie AI!",
+          description: "Please check your email to confirm your account.",
         });
       }
     } catch (error: any) {
@@ -228,7 +233,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin,
+        redirectTo: 'https://frankiealive.github.io'
       });
 
       if (error) {
@@ -251,6 +256,73 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const verifyConfirmationCode = async (email: string, code: string) => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'signup'
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Email confirmed!",
+        description: "Your email has been successfully confirmed.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Verification failed",
+        description: error.message || "An error occurred while verifying your email.",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifyResetCode = async (email: string, code: string, newPassword: string) => {
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'recovery'
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      toast({
+        title: "Password updated!",
+        description: "Your password has been successfully updated.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Password reset failed",
+        description: error.message || "An error occurred while resetting your password.",
+        variant: "destructive",
+      });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value = {
     session,
     user,
@@ -260,7 +332,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signInWithSocialProvider,
     signOut,
-    resetPassword
+    resetPassword,
+    verifyConfirmationCode,
+    verifyResetCode
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
