@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader, Mail } from "lucide-react";
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LoginFormProps {
   email: string;
@@ -28,6 +29,22 @@ const LoginForm: React.FC<LoginFormProps> = ({
   errors,
   isLoading
 }) => {
+  const [showResendConfirmation, setShowResendConfirmation] = useState(false);
+  const { resendConfirmation } = useAuth();
+
+  const handleResendConfirmation = async () => {
+    if (!email) {
+      return;
+    }
+    
+    try {
+      await resendConfirmation(email);
+      setShowResendConfirmation(false);
+    } catch (error) {
+      console.error('Error resending confirmation:', error);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4 py-4">
       <div className="space-y-2">
@@ -69,6 +86,41 @@ const LoginForm: React.FC<LoginFormProps> = ({
           </>
         )}
       </Button>
+
+      {!showResendConfirmation && (
+        <div className="text-center text-sm text-gray-600">
+          Email not confirmed? 
+          <button
+            type="button"
+            onClick={() => setShowResendConfirmation(true)}
+            className="ml-1 text-frankiePurple hover:underline"
+          >
+            Resend confirmation
+          </button>
+        </div>
+      )}
+
+      {showResendConfirmation && (
+        <div className="space-y-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleResendConfirmation}
+            className="w-full"
+            disabled={!email || isLoading}
+          >
+            Resend confirmation email
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setShowResendConfirmation(false)}
+            className="w-full text-sm"
+          >
+            Cancel
+          </Button>
+        </div>
+      )}
       
       <div className="flex items-center justify-between">
         <Button 

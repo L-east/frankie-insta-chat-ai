@@ -1,67 +1,107 @@
-import React from 'react';
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Persona } from "@/store/personaStore";
 
-interface PersonaCardProps {
-  persona: Persona;
-  onClick: () => void;
-  isSelected?: boolean;
-  layout?: 'vertical' | 'horizontal';
+import React from 'react';
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
+export interface PersonaCardProps {
+  persona: {
+    id: string;
+    name: string;
+    description: string;
+    image: string;
+    traits: string[];
+    specialties: string[];
+  };
+  onClick?: () => void;
+  layout?: 'horizontal' | 'vertical';
+  showDeployButton?: boolean;
+  disabled?: boolean;
 }
 
 const PersonaCard: React.FC<PersonaCardProps> = ({ 
   persona, 
   onClick, 
-  isSelected = false,
-  layout = 'vertical'
+  layout = 'horizontal',
+  showDeployButton = false,
+  disabled = false
 }) => {
-  const isHorizontal = layout === 'horizontal';
-  
-  return (
-    <Card 
-      className={`
-        transition-all cursor-pointer 
-        ${isSelected ? 'ring-2 ring-frankiePurple shadow-md' : 'hover:border-frankiePurple/50'} 
-        ${isHorizontal ? 'p-3 flex items-center' : 'p-4'} 
-      `} 
-      onClick={onClick}
-    >
-      <div className={isHorizontal ? 'flex gap-3 w-full' : 'space-y-3'}>
-        {/* Avatar */}
-        <div className={`
-          ${isHorizontal ? 'h-12 w-12 flex-shrink-0' : 'mx-auto h-20 w-20'} 
-          rounded-full overflow-hidden bg-gray-200
-        `}>
-          <img 
-            src={persona.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
-            alt={persona.name} 
-            className="h-full w-full object-cover"
-          />
-        </div>
-        
-        <div className={isHorizontal ? 'flex-grow' : 'text-center'}>
-          {/* Name */}
-          <h3 className={`font-semibold ${isHorizontal ? 'text-base' : 'text-lg mt-2'}`}>{persona.name}</h3>
+  const handleClick = () => {
+    if (!disabled && onClick) {
+      onClick();
+    }
+  };
+
+  if (layout === 'vertical') {
+    return (
+      <Card className={`h-full ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-lg'} transition-all duration-200`}>
+        <CardContent className="p-6 h-full flex flex-col">
+          <div className="flex items-center mb-4">
+            <img 
+              src={persona.image} 
+              alt={persona.name}
+              className="w-16 h-16 rounded-full object-cover mr-4"
+            />
+            <div className="flex-1">
+              <h3 className="text-lg font-semibold text-left">{persona.name}</h3>
+            </div>
+          </div>
           
-          {/* Description - condensed for horizontal */}
-          {!isHorizontal && <p className="text-sm text-gray-500 line-clamp-2 mt-1">{persona.description}</p>}
+          <p className="text-sm text-gray-600 mb-4 flex-1">{persona.description}</p>
           
-          {/* Tags */}
-          <div className={`${isHorizontal ? 'mt-1' : 'mt-2'} flex flex-wrap gap-1`}>
-            {persona.tags.slice(0, isHorizontal ? 2 : 3).map((tag) => (
-              <Badge key={tag} variant="outline" className="text-xs">
-                {tag}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {persona.traits.map((trait, index) => (
+              <Badge key={index} variant="secondary" className="text-xs">
+                {trait}
               </Badge>
             ))}
-            {persona.tags.length > (isHorizontal ? 2 : 3) && (
-              <Badge variant="outline" className="text-xs">
-                +{persona.tags.length - (isHorizontal ? 2 : 3)}
-              </Badge>
-            )}
+          </div>
+
+          {showDeployButton && (
+            <Button 
+              onClick={handleClick}
+              disabled={disabled}
+              className="w-full bg-frankiePurple hover:bg-frankiePurple-dark"
+            >
+              Deploy {persona.name}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card 
+      className={`${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:shadow-lg'} transition-all duration-200`}
+      onClick={handleClick}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center space-x-4">
+          <img 
+            src={persona.image} 
+            alt={persona.name}
+            className="w-12 h-12 rounded-full object-cover"
+          />
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-left">{persona.name}</h3>
+            <p className="text-sm text-gray-600">{persona.description}</p>
           </div>
         </div>
-      </div>
+        
+        <div className="flex flex-wrap gap-2 mt-3">
+          {persona.traits.slice(0, 2).map((trait, index) => (
+            <Badge key={index} variant="secondary" className="text-xs">
+              {trait}
+            </Badge>
+          ))}
+          {persona.traits.length > 2 && (
+            <Badge variant="secondary" className="text-xs">
+              +{persona.traits.length - 2}
+            </Badge>
+          )}
+        </div>
+      </CardContent>
     </Card>
   );
 };

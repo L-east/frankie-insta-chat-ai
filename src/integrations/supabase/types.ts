@@ -41,6 +41,45 @@ export type Database = {
           },
         ]
       }
+      payment_intents: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          messages_purchased: number
+          payment_id: string
+          payment_provider: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          messages_purchased: number
+          payment_id: string
+          payment_provider: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          messages_purchased?: number
+          payment_id?: string
+          payment_provider?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       persona_deployments: {
         Row: {
           auto_stop: boolean | null
@@ -117,45 +156,48 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           email: string
-          free_agents_total: number | null
-          free_agents_used: number | null
-          free_expiry_date: string | null
           free_messages_expiry: string | null
           free_messages_quota: number | null
           free_messages_used: number | null
           id: string
-          is_pro: boolean | null
+          lifetime_messages_allocated: number | null
+          lifetime_messages_used: number | null
           name: string | null
+          total_messages_allocated: number | null
+          total_messages_pending: number | null
+          total_messages_used: number | null
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           email: string
-          free_agents_total?: number | null
-          free_agents_used?: number | null
-          free_expiry_date?: string | null
           free_messages_expiry?: string | null
           free_messages_quota?: number | null
           free_messages_used?: number | null
           id: string
-          is_pro?: boolean | null
+          lifetime_messages_allocated?: number | null
+          lifetime_messages_used?: number | null
           name?: string | null
+          total_messages_allocated?: number | null
+          total_messages_pending?: number | null
+          total_messages_used?: number | null
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           email?: string
-          free_agents_total?: number | null
-          free_agents_used?: number | null
-          free_expiry_date?: string | null
           free_messages_expiry?: string | null
           free_messages_quota?: number | null
           free_messages_used?: number | null
           id?: string
-          is_pro?: boolean | null
+          lifetime_messages_allocated?: number | null
+          lifetime_messages_used?: number | null
           name?: string | null
+          total_messages_allocated?: number | null
+          total_messages_pending?: number | null
+          total_messages_used?: number | null
           updated_at?: string
         }
         Relationships: []
@@ -202,12 +244,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_messages: {
+        Row: {
+          created_at: string
+          id: string
+          last_purchase_date: string | null
+          total_messages: number
+          updated_at: string
+          used_messages: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_purchase_date?: string | null
+          total_messages?: number
+          updated_at?: string
+          used_messages?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_purchase_date?: string | null
+          total_messages?: number
+          updated_at?: string
+          used_messages?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_messages_used: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
