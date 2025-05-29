@@ -38,6 +38,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return 'http://localhost:5173'; // fallback
   };
 
+  const getRedirectUrl = (path: string) => {
+    const origin = getCurrentOrigin();
+    return `${origin}/#${path}`;
+  };
+
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -66,6 +71,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               variant: "default",
             });
           }
+        }
+
+        // Handle password recovery
+        if (event === 'PASSWORD_RECOVERY') {
+          toast({
+            title: "Password recovery initiated",
+            description: "Please enter your new password below.",
+          });
         }
         
         if (event === 'SIGNED_IN') {
@@ -134,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, name: string) => {
     setIsLoading(true);
     try {
-      const redirectUrl = getCurrentOrigin();
+      const redirectUrl = getRedirectUrl('/auth/callback');
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -144,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             name,
             display_name: name
           },
-          emailRedirectTo: `${redirectUrl}/#/auth/callback`
+          emailRedirectTo: redirectUrl
         }
       });
 
@@ -233,12 +246,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithSocialProvider = async (provider: Provider) => {
     setIsLoading(true);
     try {
-      const redirectUrl = getCurrentOrigin();
+      const redirectUrl = getRedirectUrl('/auth/callback');
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${redirectUrl}/#/auth/callback`
+          redirectTo: redirectUrl
         }
       });
 
@@ -282,10 +295,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resetPassword = async (email: string) => {
     setIsLoading(true);
     try {
-      const redirectUrl = getCurrentOrigin();
+      const redirectUrl = getRedirectUrl('/auth/reset-password');
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${redirectUrl}/#/auth/reset-password`,
+        redirectTo: redirectUrl,
       });
 
       if (error) {
@@ -311,13 +324,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const resendConfirmation = async (email: string) => {
     setIsLoading(true);
     try {
-      const redirectUrl = getCurrentOrigin();
+      const redirectUrl = getRedirectUrl('/auth/callback');
       
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: email,
         options: {
-          emailRedirectTo: `${redirectUrl}/#/auth/callback`
+          emailRedirectTo: redirectUrl
         }
       });
 

@@ -14,26 +14,68 @@ const ResetPassword: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isValidSession, setIsValidSession] = useState(false);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     // Check if we have a valid reset session
     const checkSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          setIsValidSession(true);
-        } else {
-          toast({
-            title: "Invalid reset link",
-            description: "This password reset link is invalid or has expired.",
-            variant: "destructive",
+        // First check if we have URL parameters for token verification
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+
+        if (accessToken && refreshToken && type === 'recovery') {
+          // We have tokens in the URL, set the session
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
           });
-          navigate('/');
+
+          if (error) {
+            console.error('Error setting session:', error);
+            toast({
+              title: "Invalid reset link",
+              description: "This password reset link is invalid or has expired.",
+              variant: "destructive",
+            });
+            navigate('/');
+            return;
+          }
+
+          if (data.session) {
+            setIsValidSession(true);
+            toast({
+              title: "Ready to reset password",
+              description: "Please enter your new password below.",
+            });
+          }
+        } else {
+          // Check for existing session
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            setIsValidSession(true);
+          } else {
+            toast({
+              title: "Invalid reset link",
+              description: "This password reset link is invalid or has expired.",
+              variant: "destructive",
+            });
+            navigate('/');
+          }
         }
       } catch (error) {
         console.error('Error checking session:', error);
+        toast({
+          title: "Error",
+          description: "An error occurred while verifying the reset link.",
+          variant: "destructive",
+        });
         navigate('/');
+      } finally {
+        setIsCheckingSession(false);
       }
     };
 
@@ -76,6 +118,8 @@ const ResetPassword: React.FC = () => {
         description: "Your password has been successfully updated.",
       });
 
+      // Clear URL parameters and redirect
+      window.history.replaceState({}, document.title, window.location.pathname);
       navigate('/');
     } catch (error: any) {
       toast({
@@ -88,10 +132,26 @@ const ResetPassword: React.FC = () => {
     }
   };
 
+  if (isCheckingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-lg">Verifying reset link...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!isValidSession) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader className="h-8 w-8 animate-spin" />
+        <div className="text-center">
+          <p className="text-lg">Invalid or expired reset link</p>
+          <Button onClick={() => navigate('/')} className="mt-4">
+            Return to App
+          </Button>
+        </div>
       </div>
     );
   }
