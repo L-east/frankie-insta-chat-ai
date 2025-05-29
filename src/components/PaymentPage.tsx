@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -112,34 +111,24 @@ const PaymentPage: React.FC<PaymentPageProps> = ({ onBack, onSuccess }) => {
           <p className="text-blue-700 text-sm">New users get {PRICING_CONFIG.FREE_MESSAGES} free messages to start with!</p>
         </div>
 
-        <div className="bg-gray-50 p-6 rounded-lg border">
-          <h2 className="text-lg font-bold mb-4">Choose your message package</h2>
-          
-          <RadioGroup 
-            value={selectedPackage.toString()} 
-            onValueChange={(value) => setSelectedPackage(parseInt(value))}
-            className="space-y-3"
-          >
-            {PRICING_CONFIG.PACKAGES.map((pkg, index) => (
-              <div 
-                key={index}
-                className={`border rounded-lg p-4 ${
-                  selectedPackage === index ? 'border-frankiePurple bg-frankiePurple/5' : 'border-gray-200'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <RadioGroupItem value={index.toString()} id={`pkg-${index}`} />
-                    <Label htmlFor={`pkg-${index}`} className="ml-3 font-medium">{pkg.count} Messages</Label>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold">${pkg.price.toFixed(2)}</div>
-                    <div className="text-xs text-gray-500">{PRICING_CONFIG.MESSAGE_PRICE_CENTS}¢ per message</div>
-                  </div>
-                </div>
+        <div className="grid grid-cols-3 gap-4">
+          {PRICING_CONFIG.PACKAGES.map((pkg, index) => (
+            <div 
+              key={index}
+              className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                selectedPackage === index 
+                  ? 'border-frankiePurple bg-frankiePurple/5' 
+                  : 'hover:border-gray-300'
+              }`}
+              onClick={() => setSelectedPackage(index)}
+            >
+              <div className="text-center">
+                <div className="text-xl font-bold">{pkg.count}</div>
+                <div className="text-sm text-gray-600">messages</div>
+                <div className="text-lg font-semibold mt-2">${pkg.price.toFixed(2)}</div>
               </div>
-            ))}
-          </RadioGroup>
+            </div>
+          ))}
         </div>
 
         <div className="bg-gray-50 p-6 rounded-lg border">
@@ -166,16 +155,6 @@ const PaymentPage: React.FC<PaymentPageProps> = ({ onBack, onSuccess }) => {
               Secure payment processing
             </div>
           </div>
-        </div>
-      </div>
-      
-      <div className="mt-8 space-y-4">
-        <h3 className="font-medium">Why purchase messages?</h3>
-        <div className="space-y-2">
-          <BenefitItem text="Deploy personalized AI agents to chat on your behalf" />
-          <BenefitItem text="Save time while maintaining authentic conversations" />
-          <BenefitItem text="Each message package gives you full access to all personas" />
-          <BenefitItem text="Messages can be used across any chat platform" />
         </div>
       </div>
     </div>

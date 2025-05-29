@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -137,7 +136,7 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
         <div className="flex items-center space-x-3">
           <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-200">
             <img 
-              src={persona.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
+              src={persona.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
               alt={persona.name} 
               className="h-full w-full object-cover"
             />

@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Settings, X, LogOut, Clock, User, MessageCircle } from "lucide-react";
+import { Settings, X, LogOut, Clock, User, MessageCircle, ChevronDown } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { usePersonaStore } from "@/store/personaStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +12,8 @@ import AgentConfigDrawer from './AgentConfigDrawer';
 import { getUserAgentsUsage } from '@/services/personaService';
 import { useAuthStore } from '@/store/authStore';
 import { PRICING_CONFIG } from '@/services/personaService';
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -40,12 +41,8 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
       fetchDeploymentHistory();
     }
     
-    // Show history tab if user has deployments, otherwise show personas
-    if (deploymentHistory.length > 0) {
-      setActiveTab("history");
-    } else {
-      setActiveTab("personas");
-    }
+    // Always show personas tab by default
+    setActiveTab("personas");
   }, [isAuthenticated, profile]);
 
   useEffect(() => {
@@ -87,6 +84,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
   const handleBackToPersonas = () => {
     deselectPersona();
     setShowSettings(false);
+    setShowAgentConfig(false);
     setActiveTab("personas");
   };
   
@@ -125,10 +123,42 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
 
   if (showAgentConfig && chatData && onDeploy) {
     return (
-      <div className="h-full w-full bg-white">
+      <div className={`${isOpen ? 'block' : 'hidden'} fixed top-0 right-0 h-screen w-[400px] bg-white shadow-lg flex flex-col z-50`}>
+        <div className="p-4 border-b flex justify-between items-center bg-white">
+          <div className="flex items-center space-x-2">
+            <img 
+              src="/assets/icon48.png" 
+              alt="Frankie AI" 
+              className="h-8 w-8"
+            />
+            <h1 className="text-lg font-bold">Frankie AI</h1>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => {
+              console.log('Closing Frankie from Sidebar');
+              setShowAgentConfig(false);
+              if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ action: 'closeFrankie' }, '*');
+              }
+              onClose();
+            }}
+            className="h-10 w-10"
+          >
+            <X size={18} />
+          </Button>
+        </div>
         <AgentConfigDrawer 
           isOpen={true}
-          onClose={() => setShowAgentConfig(false)}
+          onClose={() => {
+            console.log('Closing Frankie from AgentConfigDrawer');
+            setShowAgentConfig(false);
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage({ action: 'closeFrankie' }, '*');
+            }
+            onClose();
+          }}
           chatData={chatData}
           onDeploy={onDeploy}
         />
@@ -137,9 +167,9 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
   }
 
   return (
-    <div className={`${isOpen ? 'block' : 'hidden'} h-full w-full bg-white shadow-lg flex flex-col`}>
+    <div className={`${isOpen ? 'block' : 'hidden'} fixed top-0 right-0 h-screen w-[400px] bg-white shadow-lg flex flex-col z-50`}>
       {/* Header */}
-      <div className="p-4 border-b flex justify-between items-center">
+      <div className="p-4 border-b flex justify-between items-center bg-white">
         <div className="flex items-center space-x-2">
           <img 
             src="/assets/icon48.png" 
@@ -148,80 +178,71 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
           />
           <h1 className="text-lg font-bold">Frankie AI</h1>
         </div>
-        {onClose !== (() => {}) && (
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X size={18} />
-          </Button>
-        )}
-      </div>
-
-      {/* User section */}
-      <div className="p-4 border-b">
-        <div className="flex justify-between items-center">
-          <div>
-            {isAuthenticated ? (
-              <p className="font-medium">Hello, {profile?.name || user.email.split('@')[0]}</p>
-            ) : (
-              <Button 
-                variant="ghost" 
-                onClick={() => setShowAuth(true)}
-                className="text-frankiePurple"
-              >
-                Login
-              </Button>
-            )}
-          </div>
+        <div className="flex items-center space-x-2">
           {isAuthenticated && (
-            <div className="flex items-center space-x-2">
+            <>
               <Button variant="ghost" size="icon" onClick={() => setShowSettings(true)}>
                 <Settings size={18} />
               </Button>
               <Button variant="ghost" size="icon" onClick={signOut}>
                 <LogOut size={18} />
               </Button>
-            </div>
+            </>
           )}
+          {!isAuthenticated && (
+            <Button 
+              variant="ghost" 
+              onClick={() => setShowAuth(true)}
+              className="text-frankiePurple"
+            >
+              Login
+            </Button>
+          )}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => {
+              console.log('Closing Frankie from main Sidebar');
+              if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ action: 'closeFrankie' }, '*');
+              }
+              onClose();
+            }}
+            className="h-10 w-10"
+          >
+            <X size={18} />
+          </Button>
         </div>
-        
-        {/* Messages usage */}
-        {isAuthenticated && agentsUsage && (
-          <div className="mt-2">
-            <div className="flex justify-between text-xs text-gray-600">
-              <span>Messages:</span>
-              <span>{agentsUsage.free_messages_used || 0}/{agentsUsage.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES}</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-              <div 
-                className="bg-frankiePurple h-1.5 rounded-full" 
-                style={{ 
-                  width: `${getMessageQuotaInfo()?.percentage || 0}%` 
-                }}
-              ></div>
-            </div>
-          </div>
-        )}
       </div>
 
+      {/* Messages usage */}
+      {isAuthenticated && agentsUsage && (
+        <div className="p-4 border-b bg-white">
+          <div className="flex justify-between text-xs text-gray-600">
+            <span>Messages:</span>
+            <span>{agentsUsage.free_messages_used || 0}/{agentsUsage.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES}</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+            <div 
+              className="bg-frankiePurple h-1.5 rounded-full" 
+              style={{ 
+                width: `${getMessageQuotaInfo()?.percentage || 0}%` 
+              }}
+            ></div>
+          </div>
+        </div>
+      )}
+
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto bg-white">
         {showSettings ? (
           <div className="p-4">
             <SettingsRefactored onBack={handleBackToPersonas} />
           </div>
-        ) : selectedPersonaId ? (
-          <div className="p-4">
-            {selectedPersona && (
-              <PersonaDetail 
-                persona={selectedPersona} 
-                onBack={handleBackToPersonas} 
-                onOpenAuth={() => setShowAuth(true)} 
-              />
-            )}
-          </div>
         ) : (
           <div className="border-b">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid grid-cols-2 w-full">
+              <TabsList className="grid grid-cols-2 w-full bg-white">
                 <TabsTrigger value="personas">
                   <User size={16} className="mr-2" />
                   Personas
@@ -258,16 +279,103 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                       >
                         Get Started
                       </Button>
+
+                      {/* Meet our personas section */}
+                      <div className="mt-8 text-left">
+                        <h3 className="text-lg font-semibold mb-4">Meet our personas</h3>
+                        <div className="space-y-4">
+                          {personas.map((persona) => (
+                            <div key={persona.id} className="border rounded-lg p-4">
+                              <div className="flex items-start gap-4">
+                                <img 
+                                  src={persona.image_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
+                                  alt={persona.name} 
+                                  className="h-12 w-12 rounded-full"
+                                />
+                                <div className="flex-1">
+                                  <h3 className="font-medium text-left">{persona.name}</h3>
+                                  <p className="text-sm text-gray-600 mt-1">{persona.description}</p>
+                                  <div className="flex flex-wrap gap-2 mt-2">
+                                    {persona.traits.map((trait: string, index: number) => (
+                                      <Badge key={index} variant="secondary">
+                                        {trait}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* How it works section */}
+                      <div className="mt-8">
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <Collapsible>
+                            <CollapsibleTrigger asChild>
+                              <Button variant="ghost" className="w-full justify-between text-blue-800 hover:text-blue-900 hover:bg-blue-100">
+                                <span className="font-medium">How it works</span>
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="pt-4">
+                              <ol className="text-sm text-blue-700 space-y-2">
+                                <li>1. Go to Instagram Direct Messages</li>
+                                <li>2. With each chat you will see 'Deploy Frankie' button</li>
+                                <li>3. Select a persona and configure other details, click "Deploy"</li>
+                                <li>4. Your AI agent will start responding to messages</li>
+                              </ol>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    personas.map((persona) => (
-                      <PersonaCard 
-                        key={persona.id}
-                        persona={persona}
-                        onClick={() => selectPersona(persona.id)}
-                        layout="horizontal"
-                      />
-                    ))
+                    <>
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <Collapsible>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" className="w-full justify-between text-blue-800 hover:text-blue-900 hover:bg-blue-100">
+                              <span className="font-medium">How it works</span>
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="pt-4">
+                            <ol className="text-sm text-blue-700 space-y-2">
+                              <li>1. Go to Instagram Direct Messages</li>
+                              <li>2. With each chat you will see 'Deploy Frankie' button</li>
+                              <li>3. Select a persona and configure other details, click "Deploy"</li>
+                              <li>4. Your AI agent will start responding to messages</li>
+                            </ol>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </div>
+                      <div className="space-y-4">
+                        {personas.map((persona) => (
+                          <div key={persona.id} className="border rounded-lg p-4">
+                            <div className="flex items-start gap-4">
+                              <img 
+                                src={persona.image_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
+                                alt={persona.name} 
+                                className="h-12 w-12 rounded-full"
+                              />
+                              <div className="flex-1">
+                                <h3 className="font-medium text-left">{persona.name}</h3>
+                                <p className="text-sm text-gray-600 mt-1">{persona.description}</p>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                  {persona.traits.map((trait: string, index: number) => (
+                                    <Badge key={index} variant="secondary">
+                                      {trait}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
                   )}
                 </TabsContent>
                 
@@ -297,6 +405,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                               </div>
                               <div className="text-right text-sm">
                                 <div>Messages: {deployment.messages_sent || 0}/{deployment.message_count || 'N/A'}</div>
+                                <div>Pending: {deployment.message_count - (deployment.messages_sent || 0)}</div>
                                 <div>Mode: {deployment.mode}</div>
                               </div>
                             </div>
@@ -304,18 +413,28 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      {isAuthenticated ? (
-                        <div>
-                          <MessageCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                          <p>No deployment history yet</p>
-                          <p className="text-sm mt-1">Deploy your first agent to see it here</p>
-                        </div>
-                      ) : (
-                        <div>
-                          <p>Login to view your deployment history</p>
-                        </div>
-                      )}
+                    <div className="text-center py-8">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <Collapsible>
+                          <CollapsibleTrigger asChild>
+                            <Button variant="ghost" className="w-full justify-between text-blue-800 hover:text-blue-900 hover:bg-blue-100">
+                              <span className="font-medium">How it works</span>
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="pt-4">
+                            <ol className="text-sm text-blue-700 space-y-2">
+                              <li>1. Go to Instagram Direct Messages</li>
+                              <li>2. With each chat you will see 'Deploy Frankie' button</li>
+                              <li>3. Select a persona and configure other details, click "Deploy"</li>
+                              <li>4. Your AI agent will start responding to messages</li>
+                            </ol>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </div>
+                      <MessageCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                      <p className="text-gray-500">No deployment history yet</p>
+                      <p className="text-sm mt-1 text-gray-500">Deploy your first agent to see it here</p>
                     </div>
                   )}
                 </TabsContent>
@@ -326,8 +445,8 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
       </div>
       
       {/* Footer */}
-      <div className="p-4 border-t text-center">
-        <p className="text-xs text-frankieGray">© 2025 Frankie AI - v1.0.0</p>
+      <div className="p-4 border-t text-center bg-white">
+        <p className="text-xs text-frankieGray"></p>
       </div>
       
       {/* Auth modal */}

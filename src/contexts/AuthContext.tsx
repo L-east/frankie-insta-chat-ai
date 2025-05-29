@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User, Provider } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -121,6 +120,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.user) {
+        // Create profile with name
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            email: email,
+            name: name,
+            free_messages_quota: 10,
+            free_messages_used: 0
+          });
+
+        if (profileError) {
+          throw profileError;
+        }
+
         toast({
           title: "Account created!",
           description: "Welcome to Frankie AI!",

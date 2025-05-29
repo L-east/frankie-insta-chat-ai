@@ -1043,38 +1043,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // Create and open the sidebar
 function openSidebar(chatData = null) {
-  console.log('Opening sidebar with chat data:', chatData);
+  let sidebar = document.getElementById('frankie-sidebar');
   
-  // Check if sidebar already exists
   if (!sidebar) {
     console.log('Creating new sidebar');
-    // Create sidebar container
     sidebar = document.createElement('div');
     sidebar.id = 'frankie-sidebar';
     sidebar.style.position = 'fixed';
     sidebar.style.top = '0';
     sidebar.style.right = '0';
     sidebar.style.width = '400px';
-    sidebar.style.height = '100%';
+    sidebar.style.height = '100vh';
     sidebar.style.backgroundColor = 'white';
-    sidebar.style.boxShadow = '-2px 0 10px rgba(0, 0, 0, 0.1)';
+    sidebar.style.boxShadow = '-2px 0 5px rgba(0, 0, 0, 0.1)';
     sidebar.style.zIndex = '9999';
-    sidebar.style.transition = 'transform 0.3s ease';
     sidebar.style.transform = 'translateX(100%)';
-    sidebar.style.border = '1px solid #e5e5e5';
+    sidebar.style.transition = 'transform 0.3s ease-in-out';
     
-    // Create iframe to load our React app
     const iframe = document.createElement('iframe');
     iframe.style.width = '100%';
     iframe.style.height = '100%';
     iframe.style.border = 'none';
-    iframe.allow = 'clipboard-read; clipboard-write';
     
-    // Get the correct extension URL
     const extensionURL = chrome.runtime.getURL('index.html');
-    console.log('Loading extension URL in iframe:', extensionURL);
     
-    // Set up iframe event handlers
     iframe.onload = function() {
       console.log('Iframe loaded successfully');
       
@@ -1126,33 +1118,6 @@ function openSidebar(chatData = null) {
     sidebar.style.transform = 'translateX(0)';
     console.log('Sidebar animation started');
   }, 100);
-  
-  // Add close button
-  addSidebarCloseButton(sidebar);
-}
-
-// Add close button to sidebar
-function addSidebarCloseButton(sidebar) {
-  let closeButton = sidebar.querySelector('.frankie-close-button');
-  if (!closeButton) {
-    closeButton = document.createElement('button');
-    closeButton.className = 'frankie-close-button';
-    closeButton.innerHTML = '&times;';
-    closeButton.style.position = 'absolute';
-    closeButton.style.top = '10px';
-    closeButton.style.right = '10px';
-    closeButton.style.backgroundColor = 'transparent';
-    closeButton.style.border = 'none';
-    closeButton.style.fontSize = '24px';
-    closeButton.style.cursor = 'pointer';
-    closeButton.style.zIndex = '10000';
-    
-    closeButton.onclick = function() {
-      sidebar.style.transform = 'translateX(100%)';
-    };
-    
-    sidebar.appendChild(closeButton);
-  }
 }
 
 // Listen for messages from React app in iframe
@@ -1164,10 +1129,15 @@ window.addEventListener('message', function(event) {
     deployAgent(event.data.config);
   }
   
-  if (event.data && event.data.action === 'closeSidebar') {
+  if (event.data && event.data.action === 'closeFrankie') {
+    console.log('Closing Frankie sidebar');
     const sidebar = document.getElementById('frankie-sidebar');
     if (sidebar) {
       sidebar.style.transform = 'translateX(100%)';
+      // Remove the sidebar after animation
+      setTimeout(() => {
+        sidebar.remove();
+      }, 300);
     }
   }
   

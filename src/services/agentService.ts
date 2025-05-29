@@ -1,4 +1,3 @@
-
 import { PersonaDeploymentData } from './personaService';
 import { injectReplyToChat } from './chatService';
 
@@ -13,7 +12,7 @@ interface Persona {
   id: string;
   name: string;
   description: string;
-  avatar: string;
+  avatar_url: string;
   isPremium: boolean;
   perspective: '1st' | '2nd' | '3rd';
   behaviorSnapshot: string;

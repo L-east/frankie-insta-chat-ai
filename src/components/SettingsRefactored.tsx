@@ -1,13 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, User, CreditCard, Settings as SettingsIcon } from "lucide-react";
+import { ArrowLeft, User, CreditCard, Settings as SettingsIcon, Mail, HelpCircle, ChevronDown } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import PaymentPage from './PaymentPage';
 import { getUserAgentsUsage } from '@/services/personaService';
 import { PRICING_CONFIG } from '@/services/personaService';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 interface SettingsRefactoredProps {
   onBack: () => void;
@@ -36,6 +36,17 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
   const handlePaymentSuccess = () => {
     setCurrentView('main');
     fetchAgentsUsage(); // Refresh usage data
+  };
+
+  const getMessageQuotaInfo = () => {
+    if (!agentsUsage || !agentsUsage.free_messages_quota || !agentsUsage.free_messages_used) {
+      return null;
+    }
+
+    const percentage = (agentsUsage.free_messages_used / agentsUsage.free_messages_quota) * 100;
+    const daysLeft = Math.max(0, Math.ceil((new Date(agentsUsage.free_messages_expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) - Math.floor(Date.now() / (1000 * 60 * 60 * 24)));
+
+    return { percentage, daysLeft };
   };
 
   if (currentView === 'payment') {
@@ -75,14 +86,6 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
           <div>
             <label className="text-sm font-medium text-gray-600">Display Name</label>
             <div className="text-base">{profile?.name || user?.email?.split('@')[0] || 'Not set'}</div>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-gray-600">Account Type</label>
-            <div className="flex items-center gap-2 mt-1">
-              <Badge variant={profile?.is_pro ? "default" : "secondary"}>
-                {profile?.is_pro ? "Pro" : "Free"}
-              </Badge>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -159,16 +162,94 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
         </CardContent>
       </Card>
 
-      {/* App Information */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center text-sm text-gray-500 space-y-1">
-            <div>Frankie AI Chrome Extension</div>
-            <div>Version 1.0.0</div>
-            <div>© 2025 Frankie AI</div>
+      {/* Billing Section */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Billing</h2>
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-sm text-gray-600">Messages Used</span>
+            <span className="text-sm font-medium">{agentsUsage?.free_messages_used || 0}/{agentsUsage?.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES}</span>
           </div>
+          <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <div 
+              className="bg-frankiePurple h-1.5 rounded-full" 
+              style={{ width: `${getMessageQuotaInfo()?.percentage || 0}%` }}
+            ></div>
+          </div>
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>Free messages reset in {getMessageQuotaInfo()?.daysLeft || 0} days</span>
+            <span>{getMessageQuotaInfo()?.percentage || 0}% used</span>
+          </div>
+        </div>
+      </div>
+
+      {/* FAQ Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <HelpCircle className="h-5 w-5" />
+            Frequently Asked Questions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" className="w-full justify-between">
+                View FAQs
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-4 pt-4">
+              <div>
+                <h3 className="font-medium mb-2">What are message credits?</h3>
+                <p className="text-sm text-gray-600">
+                  Message credits are used to power your AI agents. Each message sent by an agent consumes one credit. You get {PRICING_CONFIG.FREE_MESSAGES} free messages every month, and can purchase additional credits as needed.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-medium mb-2">How do I get more message credits?</h3>
+                <p className="text-sm text-gray-600">
+                  You can purchase additional message credits through our packages. Each package comes with a specific number of messages that never expire.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-medium mb-2">Do message credits expire?</h3>
+                <p className="text-sm text-gray-600">
+                  Free monthly credits expire at the end of each month. Purchased message credits never expire and can be used anytime.
+                </p>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </CardContent>
       </Card>
+
+      {/* Contact Us Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5" />
+            Contact Us
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Collapsible>
+            <CollapsibleTrigger asChild>
+              <Button variant="outline" className="w-full justify-between">
+                Contact
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-4">
+              <p className="text-sm text-gray-600">Need help? Reach out to us at:</p>
+              <p className="text-sm font-medium mt-2">alivefrankie@gmail.com</p>
+            </CollapsibleContent>
+          </Collapsible>
+        </CardContent>
+      </Card>
+
+      {/* Footer */}
+      <div className="mt-8 text-center text-sm text-gray-500">
+      </div>
     </div>
   );
 };

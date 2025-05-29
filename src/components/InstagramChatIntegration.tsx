@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { toast } from "@/components/ui/use-toast";
 import { incrementMessageUsed } from '@/services/personaService';
@@ -25,6 +24,10 @@ const InstagramChatIntegration: React.FC = () => {
         const { chatData } = event.data;
         console.log("Opening agent config with chat data:", chatData);
         setCurrentChatData(chatData);
+      }
+
+      if (event.data.action === 'openFrankie') {
+        window.location.href = 'https://www.instagram.com/direct/inbox/';
       }
     };
 
@@ -114,14 +117,17 @@ const InstagramChatIntegration: React.FC = () => {
   
   if (isExtensionContext) {
     return (
-      <div className="h-screen w-full bg-white">
-        <Sidebar 
-          isOpen={true} 
-          onClose={() => {}} 
-          chatData={currentChatData}
-          onDeploy={handleAgentDeploy}
-        />
-      </div>
+      <Sidebar 
+        isOpen={true} 
+        onClose={() => {
+          console.log('Closing Frankie from InstagramChatIntegration');
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ action: 'closeFrankie' }, '*');
+          }
+        }} 
+        chatData={currentChatData}
+        onDeploy={handleAgentDeploy}
+      />
     );
   }
   

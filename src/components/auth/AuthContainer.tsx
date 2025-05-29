@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAuth } from '@/contexts/AuthContext';
@@ -6,8 +5,6 @@ import { Provider } from '@supabase/supabase-js';
 import LoginForm from './LoginForm';
 import SignupForm from './SignupForm';
 import ForgotPasswordForm from './ForgotPasswordForm';
-import SocialAuthButtons from './SocialAuthButtons';
-import AuthDivider from './AuthDivider';
 
 interface AuthContainerProps {
   isOpen: boolean;
@@ -139,13 +136,6 @@ const AuthContainer: React.FC<AuthContainerProps> = ({ isOpen, onClose }) => {
                 isLoading={isLoading}
               />
             )}
-            
-            <AuthDivider />
-            
-            <SocialAuthButtons 
-              handleSocialSignIn={handleSocialSignIn} 
-              isLoading={isLoading} 
-            />
           </>
         )}
       </DialogContent>

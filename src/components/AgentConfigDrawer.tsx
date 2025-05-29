@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerFooter, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -7,10 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { usePersonaStore } from "@/store/personaStore";
 import { toast } from "@/components/ui/use-toast";
-import { createPersonaDeployment, PersonaDeploymentData, incrementAgentUsed, getUserAgentsUsage, incrementMessageUsed } from '@/services/personaService';
+import { createPersonaDeployment, PersonaDeploymentData, incrementAgentUsed, getUserAgentsUsage, incrementMessageUsed, PRICING_CONFIG } from '@/services/personaService';
 import { useAuth } from '@/contexts/AuthContext';
-import PersonaCard from './PersonaCard';
-import { Loader } from "lucide-react";
+import { Loader, X } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface AgentConfigDrawerProps {
   isOpen: boolean;
@@ -34,19 +33,21 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
   const [customPrompt, setCustomPrompt] = useState('');
   const [toneStrength, setToneStrength] = useState(5);
   const [timeLimit, setTimeLimit] = useState('60');
-  const [messageCount, setMessageCount] = useState('');
+  const [messageCount, setMessageCount] = useState('1');
   const [mode, setMode] = useState<'auto'|'manual'>('auto');
 
   const selectedPersona = getSelectedPersona();
   
   useEffect(() => {
+    console.log('AgentConfigDrawer mounted');
     if (isOpen) {
+      console.log('Fetching agent usage');
       fetchAgentUsage();
       
       // Reset form fields when drawer opens
       deselectPersona();
       setTimeLimit('60');
-      setMessageCount('');
+      setMessageCount('1');
       setCustomPrompt('');
     }
   }, [isOpen, user]);
@@ -55,6 +56,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
     try {
       if (user) {
         const usageData = await getUserAgentsUsage();
+        console.log('Agent usage data:', usageData);
         setAgentUsage(usageData);
       }
     } catch (error) {
@@ -62,35 +64,46 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
     }
   };
 
+  const handlePersonaSelect = (personaId: string) => {
+    const persona = personas.find(p => p.id === personaId);
+    if (persona) {
+      selectPersona(persona.id);
+      // Auto-fill the first 3 attributes in the instructions
+      if (persona.attributes && persona.attributes.length > 0) {
+        const attributes = persona.attributes.slice(0, 3);
+        setCustomPrompt(attributes.join('\n'));
+      }
+    }
+  };
+
   const handleDeploy = async () => {
+    console.log('Deploy button clicked');
     if (!selectedPersona) {
       toast({
-        title: "Select a persona",
-        description: "Please select a persona before deploying the agent.",
+        title: "Error",
+        description: "Please select a persona",
         variant: "destructive"
       });
       return;
     }
-    
-    // Validate and set defaults for time limit
-    const timeLimitValue = timeLimit === '' ? '60' : timeLimit;
-    const timeLimitNum = parseInt(timeLimitValue);
-    if (timeLimitNum > 240) {
+
+    // Check if user has enough messages
+    const remainingMessages = (agentUsage?.remaining_messages || 0) + PRICING_CONFIG.FREE_MESSAGES;
+    if (parseInt(messageCount) > remainingMessages) {
       toast({
-        title: "Invalid time limit",
-        description: "Time limit cannot exceed 240 minutes.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    // Validate and set defaults for message count
-    const messageCountValue = messageCount === '' ? '1' : messageCount;
-    const messageCountNum = parseInt(messageCountValue);
-    if (messageCountNum > 100) {
-      toast({
-        title: "Invalid message count",
-        description: "Message count cannot exceed 100.",
+        title: "Insufficient Messages",
+        description: (
+          <div className="flex flex-col gap-2">
+            <p>You don't have enough messages for this deployment.</p>
+            <Button 
+              variant="link" 
+              className="p-0 h-auto text-primary"
+              onClick={() => window.location.href = '/settings?tab=billing'}
+            >
+              Buy more messages
+            </Button>
+          </div>
+        ),
         variant: "destructive"
       });
       return;
@@ -99,25 +112,6 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
     setIsDeploying(true);
     
     try {
-      // Check if user has enough messages
-      if (user && agentUsage) {
-        const freeMessagesUsed = agentUsage.free_messages_used || 0;
-        const freeMessagesQuota = agentUsage.free_messages_quota || 100;
-        
-        if (freeMessagesUsed >= freeMessagesQuota) {
-          toast({
-            title: "Message limit reached",
-            description: "You've used all your free messages. Please purchase more to continue.",
-            variant: "destructive"
-          });
-          setIsDeploying(false);
-          return;
-        }
-        
-        // Increment message usage
-        await incrementMessageUsed();
-      }
-      
       // Prepare deployment data
       const deploymentData: PersonaDeploymentData = {
         persona_id: selectedPersona.id,
@@ -127,8 +121,8 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
         tone_strength: toneStrength,
         flag_keywords: [],
         flag_action: 'pause',
-        time_limit: timeLimitNum,
-        message_count: messageCountNum,
+        time_limit: parseInt(timeLimit),
+        message_count: parseInt(messageCount),
         auto_stop: true
       };
       
@@ -163,117 +157,147 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
     }
   };
 
+  if (!personas || personas.length === 0) {
+    return <div className="p-4">Loading personas...</div>;
+  }
+
+  console.log('Rendering AgentConfigDrawer');
+
   return (
-    <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DrawerContent className="max-h-[90vh]">
-        <DrawerHeader>
-          <DrawerTitle>Deploy AI Agent</DrawerTitle>
-          <DrawerDescription>
+    <div className="h-full flex flex-col bg-white">
+      {/* Header */}
+      <div className="p-4 border-b flex justify-between items-center bg-white">
+        <div>
+          <h2 className="text-xl font-bold">Deploy AI Agent</h2>
+          <p className="text-sm text-gray-600 mt-1">
             Configure and deploy an AI persona to handle your Instagram chat conversations.
-          </DrawerDescription>
-        </DrawerHeader>
-        
-        <div className="px-4 overflow-y-auto pb-2 max-h-[calc(90vh-10rem)]">
-          {/* Persona selection */}
-          <div className="mb-6">
-            <h3 className="text-lg font-medium mb-3">Select Persona</h3>
-            <div className="space-y-3">
-              {personas.map((persona) => (
-                <PersonaCard 
-                  key={persona.id}
-                  persona={persona}
-                  onClick={() => selectPersona(persona.id)}
-                  isSelected={selectedPersonaId === persona.id}
-                  layout="vertical"
-                />
-              ))}
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => {
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage({ action: 'closeFrankie' }, '*');
+            }
+            onClose();
+          }}
+          className="h-10 w-10"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto p-4 pb-20">
+        {/* Persona selection */}
+        <div className="mb-6">
+          <h3 className="text-lg font-medium mb-3">Select Persona</h3>
+          <div className="space-y-3">
+            <Select
+              value={selectedPersonaId || ''}
+              onValueChange={handlePersonaSelect}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a persona" />
+              </SelectTrigger>
+              <SelectContent>
+                {personas.map((persona) => (
+                  <SelectItem key={persona.id} value={persona.id}>
+                    {persona.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Configuration sections */}
+        <div className="space-y-6">
+          {/* Instructions */}
+          <div className="border rounded-lg p-4">
+            <h3 className="text-lg font-medium mb-3">Instructions for {selectedPersona?.name || 'persona'}</h3>
+            <div className="space-y-2">
+              <Textarea 
+                placeholder="Add custom instructions to guide the AI..."
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                className="min-h-[100px]"
+              />
             </div>
           </div>
 
-          {/* Configuration sections */}
-          <div className="space-y-6">
-            {/* Instructions */}
-            <div className="border rounded-lg p-4">
-              <h4 className="font-medium mb-2">Instructions for {selectedPersona?.name || 'persona'}</h4>
-              <div className="space-y-2">
-                <Textarea 
-                  placeholder="Add custom instructions to guide the AI..."
-                  value={customPrompt}
-                  onChange={(e) => setCustomPrompt(e.target.value)}
-                />
-              </div>
-            </div>
-            
-            {/* Session Controls */}
-            <div className="border rounded-lg p-4">
-              <h4 className="font-medium mb-2">Session Controls</h4>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="time-limit">Time Limit (minutes)</Label>
-                    <Input 
-                      id="time-limit" 
-                      placeholder="60"
-                      type="number" 
-                      value={timeLimit}
-                      onChange={(e) => setTimeLimit(e.target.value)}
-                      min="1"
-                      max="240"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Max: 240 minutes, Default: 60 minutes</p>
-                  </div>
-                  <div>
-                    <Label htmlFor="message-count">Message Count</Label>
-                    <Input 
-                      id="message-count" 
-                      placeholder="1"
-                      type="number"
-                      value={messageCount}
-                      onChange={(e) => setMessageCount(e.target.value)}
-                      min="1"
-                      max="100"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Max: 100 messages, Default: 1 message</p>
-                  </div>
-                </div>
-                
-                <div>
-                  <div className="mb-2">Mode</div>
-                  <RadioGroup value={mode} onValueChange={(value) => setMode(value as 'auto'|'manual')}>
-                    <div className="flex items-center space-x-2 mb-2">
-                      <RadioGroupItem value="auto" id="auto" />
-                      <Label htmlFor="auto">Fully Auto (agent sends directly)</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="manual" id="manual" />
-                      <Label htmlFor="manual">Semi-Manual (agent drafts, you send)</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-                
-                {agentUsage && user && (
-                  <div className="text-xs text-gray-500 mt-4">
-                    <div>
-                      Messages: {agentUsage.free_messages_used}/{agentUsage.free_messages_quota} used
-                    </div>
-                    {agentUsage.free_messages_expiry && (
-                      <div>
-                        Expires in {Math.max(0, Math.ceil((new Date(agentUsage.free_messages_expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+          {/* Time limit */}
+          <div className="border rounded-lg p-4">
+            <h3 className="text-lg font-medium mb-3">Time Limit (minutes)</h3>
+            <div className="space-y-2">
+              <Input 
+                type="number" 
+                value={timeLimit}
+                onChange={(e) => setTimeLimit(e.target.value)}
+                min="1"
+                max="240"
+              />
+              <p className="text-xs text-gray-500">Maximum 240 minutes</p>
             </div>
           </div>
+
+          {/* Message count */}
+          <div className="border rounded-lg p-4">
+            <h3 className="text-lg font-medium mb-3">Message Count</h3>
+            <div className="space-y-2">
+              <Input 
+                type="number" 
+                value={messageCount}
+                onChange={(e) => setMessageCount(e.target.value)}
+                min="1"
+                max="100"
+              />
+              <p className="text-xs text-gray-500">
+                Available messages: {agentUsage?.remaining_messages || 0}
+              </p>
+            </div>
+          </div>
+
+          {/* Mode selection */}
+          <div className="border rounded-lg p-4">
+            <h3 className="text-lg font-medium mb-3">Mode</h3>
+            <RadioGroup value={mode} onValueChange={(value) => setMode(value as 'auto'|'manual')}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="auto" id="auto" />
+                <Label htmlFor="auto">Automatic</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="manual" id="manual" />
+                <Label htmlFor="manual">Manual</Label>
+              </div>
+            </RadioGroup>
+            <p className="text-sm text-muted-foreground mt-2">
+              {mode === 'auto' ? 'Frankie will generate reply and send it' : 'Frankie will share reply for you to send it'}
+            </p>
+          </div>
         </div>
-        
-        <DrawerFooter>
-          <Button onClick={onClose} variant="outline">Cancel</Button>
+      </div>
+
+      {/* Footer Actions */}
+      <div className="sticky bottom-0 left-0 right-0 p-4 border-t bg-white shadow-lg">
+        <div className="flex justify-between gap-3">
+          <Button 
+            variant="outline" 
+            onClick={() => {
+              if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ action: 'closeFrankie' }, '*');
+              }
+              onClose();
+            }}
+            className="flex-1 h-10"
+          >
+            Cancel
+          </Button>
           <Button 
             onClick={handleDeploy}
-            className="bg-frankiePurple hover:bg-frankiePurple-dark"
-            disabled={isDeploying || !selectedPersonaId}
+            disabled={isDeploying || !selectedPersona}
+            className="flex-1 h-10 bg-frankiePurple hover:bg-frankiePurple-dark text-white"
           >
             {isDeploying ? (
               <>
@@ -281,12 +305,12 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
                 Deploying...
               </>
             ) : (
-              "Save & Deploy"
+              'Save & Deploy'
             )}
           </Button>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
+        </div>
+      </div>
+    </div>
   );
 };
 

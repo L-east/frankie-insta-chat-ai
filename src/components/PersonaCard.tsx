@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +34,7 @@ const PersonaCard: React.FC<PersonaCardProps> = ({
           rounded-full overflow-hidden bg-gray-200
         `}>
           <img 
-            src={persona.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
+            src={persona.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
             alt={persona.name} 
             className="h-full w-full object-cover"
           />

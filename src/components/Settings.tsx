@@ -1,12 +1,10 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, Settings as SettingsIcon, User, Bell, Shield, CreditCard, HelpCircle } from "lucide-react";
+import { ChevronLeft, Settings as SettingsIcon, User, Bell, Shield, CreditCard, HelpCircle, MessageCircle } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuthStore } from '@/store/authStore';
-import SettingsVertical from './SettingsVertical';
 
 interface SettingsProps {
   onBack: () => void;
@@ -14,7 +12,7 @@ interface SettingsProps {
 
 const Settings = ({ onBack }: SettingsProps) => {
   const { isAuthenticated, user } = useAuthStore();
-  const { profile } = useAuth(); // Removed updateUserProfile as it doesn't exist
+  const { profile } = useAuth();
   
   // State for settings
   const [notifications, setNotifications] = useState({
@@ -33,7 +31,6 @@ const Settings = ({ onBack }: SettingsProps) => {
     }));
   };
   
-  // Updated to use vertical tab navigation
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 mb-6">
@@ -73,9 +70,15 @@ const Settings = ({ onBack }: SettingsProps) => {
             />
             <TabButton 
               icon={<HelpCircle size={16} />}
-              label="Help" 
-              isActive={activeTab === 'help'} 
-              onClick={() => setActiveTab('help')} 
+              label="FAQ" 
+              isActive={activeTab === 'faq'} 
+              onClick={() => setActiveTab('faq')} 
+            />
+            <TabButton 
+              icon={<MessageCircle size={16} />}
+              label="Contact Us" 
+              isActive={activeTab === 'contact'} 
+              onClick={() => setActiveTab('contact')} 
             />
           </nav>
         </div>
@@ -101,34 +104,6 @@ const Settings = ({ onBack }: SettingsProps) => {
                         {profile?.name || 'Not set'}
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="py-4 border-t border-b space-y-2">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="font-medium">Account Type</p>
-                        <p className="text-sm text-frankieGray">
-                          {user?.isPro ? 'Pro Account' : 'Free Account'}
-                        </p>
-                      </div>
-                      
-                      {!user?.isPro && (
-                        <Button 
-                          className="bg-frankiePurple hover:bg-frankiePurple-dark"
-                          onClick={() => {
-                            // This would redirect to upgrade page
-                          }}
-                        >
-                          Upgrade
-                        </Button>
-                      )}
-                    </div>
-                    
-                    {!user?.isPro && (
-                      <div className="text-sm text-frankieGray">
-                        Free tier: 7 agent deployments, valid for {Math.max(0, Math.ceil((new Date(user?.freeExpiryDate || Date.now()).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} more days.
-                      </div>
-                    )}
                   </div>
                   
                   <Button 
@@ -222,112 +197,92 @@ const Settings = ({ onBack }: SettingsProps) => {
           
           {activeTab === 'billing' && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium mb-4">Billing Information</h3>
+              <h3 className="text-lg font-medium mb-4">Message Credits</h3>
               
-              {isAuthenticated && user?.isPro ? (
+              {isAuthenticated ? (
                 <div className="space-y-4">
                   <div>
-                    <div className="font-medium">Current Plan</div>
-                    <div className="text-lg">Pro Plan - $9.99/month</div>
-                    <div className="text-sm text-frankieGray">Next billing date: June 15, 2025</div>
+                    <div className="font-medium">Remaining Messages</div>
+                    <div className="text-lg">{user?.freeMessagesQuota - (user?.freeMessagesUsed || 0)} messages</div>
                   </div>
                   
-                  <div className="pt-4 border-t">
-                    <div className="font-medium mb-2">Payment Method</div>
-                    <div className="flex items-center">
-                      <div className="bg-gray-100 p-2 rounded mr-2">
-                        <CreditCard size={20} />
-                      </div>
-                      <div>
-                        <div>**** **** **** 4242</div>
-                        <div className="text-sm text-frankieGray">Expires 12/28</div>
-                      </div>
+                  <div className="grid grid-cols-3 gap-4 mt-6">
+                    <div className="border rounded-lg p-4 text-center">
+                      <div className="text-xl font-bold">10</div>
+                      <div className="text-sm text-frankieGray">messages</div>
+                      <div className="text-lg font-semibold mt-2">$1.00</div>
+                      <Button className="w-full mt-4">Purchase</Button>
                     </div>
-                  </div>
-                  
-                  <div className="flex space-x-4 pt-4">
-                    <Button variant="outline">Update Payment</Button>
-                    <Button variant="outline" className="text-red-500 border-red-300 hover:bg-red-50">
-                      Cancel Subscription
-                    </Button>
+                    <div className="border rounded-lg p-4 text-center">
+                      <div className="text-xl font-bold">50</div>
+                      <div className="text-sm text-frankieGray">messages</div>
+                      <div className="text-lg font-semibold mt-2">$5.00</div>
+                      <Button className="w-full mt-4">Purchase</Button>
+                    </div>
+                    <div className="border rounded-lg p-4 text-center">
+                      <div className="text-xl font-bold">100</div>
+                      <div className="text-sm text-frankieGray">messages</div>
+                      <div className="text-lg font-semibold mt-2">$10.00</div>
+                      <Button className="w-full mt-4">Purchase</Button>
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  <div>
-                    <div className="font-medium">Current Plan</div>
-                    <div className="text-lg">Free Tier</div>
-                    <ul className="list-disc list-inside text-sm text-frankieGray mt-2">
-                      <li>Up to 7 agent deployments</li>
-                      <li>Valid for 7 days from account creation</li>
-                      <li>Basic personas only</li>
-                    </ul>
-                  </div>
-                  
-                  <div className="bg-gray-50 p-4 rounded-lg border mt-6">
-                    <div className="font-bold text-lg mb-2">Upgrade to Pro</div>
-                    <ul className="list-disc list-inside text-sm mb-4">
-                      <li>Unlimited agent deployments</li>
-                      <li>All premium personas</li>
-                      <li>Priority support</li>
-                      <li>Advanced configuration options</li>
-                    </ul>
-                    <Button className="w-full bg-frankiePurple hover:bg-frankiePurple-dark">
-                      Upgrade for $9.99/month
-                    </Button>
-                  </div>
+                <div className="text-center py-6">
+                  <p className="mb-4 text-frankieGray">Please log in to view your message credits</p>
+                  <Button 
+                    className="bg-frankiePurple hover:bg-frankiePurple-dark"
+                    onClick={() => {
+                      // This would trigger login modal
+                    }}
+                  >
+                    Log in
+                  </Button>
                 </div>
               )}
             </div>
           )}
-          
-          {activeTab === 'help' && (
+
+          {activeTab === 'faq' && (
             <div className="space-y-6">
-              <h3 className="text-lg font-medium mb-4">Help & Support</h3>
+              <h3 className="text-lg font-medium mb-4">Frequently Asked Questions</h3>
               
-              <div className="space-y-6">
-                <div>
-                  <h4 className="font-medium mb-2">Documentation</h4>
-                  <p className="text-sm text-frankieGray mb-2">
-                    Check our comprehensive documentation to learn how to use Frankie AI effectively.
-                  </p>
-                  <Button variant="outline" className="text-frankiePurple border-frankiePurple">
-                    View Documentation
-                  </Button>
+              <div className="space-y-4">
+                <div className="border-b pb-4">
+                  <h4 className="font-medium mb-2">What is Frankie AI?</h4>
+                  <p className="text-frankieGray">Frankie AI is an AI-powered chat assistant that helps you manage your Instagram conversations.</p>
                 </div>
                 
-                <div className="pt-4 border-t">
-                  <h4 className="font-medium mb-2">Contact Support</h4>
-                  <p className="text-sm text-frankieGray mb-2">
-                    Having issues or questions? Our support team is ready to help.
-                  </p>
-                  <Button variant="outline" className="text-frankiePurple border-frankiePurple">
-                    Contact Support
-                  </Button>
+                <div className="border-b pb-4">
+                  <h4 className="font-medium mb-2">How do message credits work?</h4>
+                  <p className="text-frankieGray">You get 10 free messages when you sign up. After that, you can purchase message packages to continue using the service. Each message costs 10 cents.</p>
                 </div>
                 
-                <div className="pt-4 border-t">
-                  <h4 className="font-medium mb-2">FAQ</h4>
-                  <div className="space-y-2">
-                    <details className="text-sm">
-                      <summary className="font-medium cursor-pointer">How do I deploy an agent?</summary>
-                      <p className="mt-2 ml-4 text-frankieGray">
-                        Navigate to an Instagram chat, click the "Deploy Frankie" button next to the text input area, and follow the configuration steps.
-                      </p>
-                    </details>
-                    <details className="text-sm">
-                      <summary className="font-medium cursor-pointer">What's the difference between auto and manual mode?</summary>
-                      <p className="mt-2 ml-4 text-frankieGray">
-                        Auto mode allows the agent to send messages automatically. Manual mode lets you review messages before sending them.
-                      </p>
-                    </details>
-                    <details className="text-sm">
-                      <summary className="font-medium cursor-pointer">Can I customize the agent's behavior?</summary>
-                      <p className="mt-2 ml-4 text-frankieGray">
-                        Yes, you can add custom instructions, adjust tone strength, and set up trigger keywords to guide your agent's behavior.
-                      </p>
-                    </details>
-                  </div>
+                <div className="border-b pb-4">
+                  <h4 className="font-medium mb-2">How do I purchase more messages?</h4>
+                  <p className="text-frankieGray">Go to the Billing section and choose from our available message packages.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'contact' && (
+            <div className="space-y-6">
+              <h3 className="text-lg font-medium mb-4">Contact Us</h3>
+              
+              <div className="space-y-4">
+                <p className="text-frankieGray">
+                  Have questions or need help? Reach out to our support team.
+                </p>
+                
+                <div className="space-y-2">
+                  <div className="font-medium">Email Support</div>
+                  <p className="text-frankieGray">support@frankieai.com</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="font-medium">Response Time</div>
+                  <p className="text-frankieGray">We typically respond within 24 hours during business days.</p>
                 </div>
               </div>
             </div>
@@ -338,18 +293,17 @@ const Settings = ({ onBack }: SettingsProps) => {
   );
 };
 
-// Tab button component
 const TabButton = ({ icon, label, isActive, onClick }: { icon: React.ReactNode, label: string, isActive: boolean, onClick: () => void }) => {
   return (
     <button
-      className={`flex items-center w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${
+      onClick={onClick}
+      className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm ${
         isActive 
-          ? 'bg-frankiePurple/10 text-frankiePurple font-medium' 
+          ? 'bg-frankiePurple text-white' 
           : 'text-gray-600 hover:bg-gray-100'
       }`}
-      onClick={onClick}
     >
-      <span className="mr-2">{icon}</span>
+      {icon}
       {label}
     </button>
   );
