@@ -42,7 +42,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
     }
     
     // Always show personas tab by default
-    setActiveTab("personas");
+      setActiveTab("personas");
   }, [isAuthenticated, profile]);
 
   useEffect(() => {
@@ -212,26 +212,26 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
           >
             <X size={18} />
           </Button>
+            </div>
         </div>
-      </div>
-
-      {/* Messages usage */}
-      {isAuthenticated && agentsUsage && (
+        
+        {/* Messages usage */}
+        {isAuthenticated && agentsUsage && (
         <div className="p-4 border-b bg-white">
-          <div className="flex justify-between text-xs text-gray-600">
-            <span>Messages:</span>
-            <span>{agentsUsage.free_messages_used || 0}/{agentsUsage.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES}</span>
+            <div className="flex justify-between text-xs text-gray-600">
+              <span>Messages:</span>
+              <span>{agentsUsage.free_messages_used || 0}/{agentsUsage.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+              <div 
+                className="bg-frankiePurple h-1.5 rounded-full" 
+                style={{ 
+                  width: `${getMessageQuotaInfo()?.percentage || 0}%` 
+                }}
+              ></div>
+            </div>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-            <div 
-              className="bg-frankiePurple h-1.5 rounded-full" 
-              style={{ 
-                width: `${getMessageQuotaInfo()?.percentage || 0}%` 
-              }}
-            ></div>
-          </div>
-        </div>
-      )}
+        )}
 
       {/* Main content */}
       <div className="flex-1 overflow-y-auto bg-white">
@@ -432,7 +432,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                           </CollapsibleContent>
                         </Collapsible>
                       </div>
-                      <MessageCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                          <MessageCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                       <p className="text-gray-500">No deployment history yet</p>
                       <p className="text-sm mt-1 text-gray-500">Deploy your first agent to see it here</p>
                     </div>

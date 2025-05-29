@@ -212,13 +212,13 @@ const Settings = ({ onBack }: SettingsProps) => {
                       <div className="text-sm text-frankieGray">messages</div>
                       <div className="text-lg font-semibold mt-2">$1.00</div>
                       <Button className="w-full mt-4">Purchase</Button>
-                    </div>
+                      </div>
                     <div className="border rounded-lg p-4 text-center">
                       <div className="text-xl font-bold">50</div>
                       <div className="text-sm text-frankieGray">messages</div>
                       <div className="text-lg font-semibold mt-2">$5.00</div>
                       <Button className="w-full mt-4">Purchase</Button>
-                    </div>
+                      </div>
                     <div className="border rounded-lg p-4 text-center">
                       <div className="text-xl font-bold">100</div>
                       <div className="text-sm text-frankieGray">messages</div>
@@ -237,12 +237,12 @@ const Settings = ({ onBack }: SettingsProps) => {
                     }}
                   >
                     Log in
-                  </Button>
+                    </Button>
                 </div>
               )}
             </div>
           )}
-
+          
           {activeTab === 'faq' && (
             <div className="space-y-6">
               <h3 className="text-lg font-medium mb-4">Frequently Asked Questions</h3>
@@ -280,7 +280,7 @@ const Settings = ({ onBack }: SettingsProps) => {
                   <p className="text-frankieGray">support@frankieai.com</p>
                 </div>
                 
-                <div className="space-y-2">
+                  <div className="space-y-2">
                   <div className="font-medium">Response Time</div>
                   <p className="text-frankieGray">We typically respond within 24 hours during business days.</p>
                 </div>

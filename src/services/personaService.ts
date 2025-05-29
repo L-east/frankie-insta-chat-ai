@@ -100,13 +100,13 @@ export const addMessagesToQuota = async (messageCount: number) => {
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) throw new Error('User not authenticated');
-  
+
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single();
-    
+
   if (profileError) throw profileError;
   
   const updates = {
@@ -119,7 +119,7 @@ export const addMessagesToQuota = async (messageCount: number) => {
     .from('profiles')
     .update(updates)
     .eq('id', user.id);
-    
+
   if (error) throw error;
 };
 
@@ -185,6 +185,7 @@ export const PRICING_CONFIG = {
   MESSAGE_PRICE_CENTS: 10, // 10 cents per message
   MESSAGE_VALIDITY_DAYS: 30,
   PACKAGES: [
+    { count: 100, price: 0.01 },
     { count: 10, price: 1.00 },
     { count: 50, price: 5.00 },
     { count: 100, price: 10.00 },

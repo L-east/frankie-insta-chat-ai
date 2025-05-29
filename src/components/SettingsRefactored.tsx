@@ -51,15 +51,17 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
 
   if (currentView === 'payment') {
     return (
-      <PaymentPage 
-        onBack={() => setCurrentView('main')} 
-        onSuccess={handlePaymentSuccess}
-      />
+      <div className="h-full flex flex-col">
+        <PaymentPage 
+          onBack={() => setCurrentView('main')} 
+          onSuccess={handlePaymentSuccess}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col space-y-6 overflow-y-auto">
       <div className="flex items-center gap-4 mb-6">
         <Button variant="outline" size="icon" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" />

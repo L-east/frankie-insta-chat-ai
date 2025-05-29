@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "lib": ["deno.window"],
+    "strict": true
+  },
+  "importMap": {
+    "imports": {
+      "std/": "https://deno.land/std@0.168.0/",
+      "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2",
+      "@paypal/checkout-server-sdk": "https://esm.sh/@paypal/checkout-server-sdk@1.0.3"
+    }
+  }
+} 
