@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Settings, X, LogOut, Clock, User, MessageCircle, ChevronDown } from "lucide-react";
@@ -9,8 +10,6 @@ import PersonaDetail from './PersonaDetail';
 import SettingsRefactored from './SettingsRefactored';
 import Auth from './Auth';
 import AgentConfigDrawer from './AgentConfigDrawer';
-import { getUserAgentsUsage } from '@/services/personaService';
-import { useAuthStore } from '@/store/authStore';
 import { PRICING_CONFIG } from '@/services/personaService';
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
@@ -27,7 +26,6 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
   const { personas, selectPersona, selectedPersonaId, getSelectedPersona, deselectPersona } = usePersonaStore();
   const [showSettings, setShowSettings] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
-  const [agentsUsage, setAgentsUsage] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("personas");
   const [deploymentHistory, setDeploymentHistory] = useState<any[]>([]);
   const [showAgentConfig, setShowAgentConfig] = useState(false);
@@ -37,7 +35,6 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      fetchAgentsUsage();
       fetchDeploymentHistory();
     }
     
@@ -50,16 +47,6 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
       setShowAgentConfig(true);
     }
   }, [chatData, onDeploy]);
-
-  const fetchAgentsUsage = async () => {
-    try {
-      if (!user) return;
-      const usageData = await getUserAgentsUsage();
-      setAgentsUsage(usageData);
-    } catch (error) {
-      console.error('Error fetching agents usage:', error);
-    }
-  };
   
   const fetchDeploymentHistory = async () => {
     try {
@@ -68,7 +55,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
       const { supabase } = await import('@/integrations/supabase/client');
       
       const { data, error } = await supabase
-        .from('persona_deployments')
+        .from('user_deployments')
         .select('*')
         .order('created_at', { ascending: false });
       
@@ -98,12 +85,12 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
   };
 
   const getMessageQuotaInfo = () => {
-    if (!agentsUsage) return null;
+    if (!profile) return null;
     
-    const messagesUsed = agentsUsage.free_messages_used || 0;
-    const messagesQuota = agentsUsage.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES;
-    const expiryDate = agentsUsage.free_messages_expiry 
-      ? new Date(agentsUsage.free_messages_expiry) 
+    const messagesUsed = profile.free_messages_used || 0;
+    const messagesQuota = profile.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES;
+    const expiryDate = profile.free_messages_expiry 
+      ? new Date(profile.free_messages_expiry) 
       : null;
     
     const daysLeft = expiryDate 
@@ -216,11 +203,11 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
         </div>
         
         {/* Messages usage */}
-        {isAuthenticated && agentsUsage && (
+        {isAuthenticated && profile && (
         <div className="p-4 border-b bg-white">
             <div className="flex justify-between text-xs text-gray-600">
               <span>Messages:</span>
-              <span>{agentsUsage.free_messages_used || 0}/{agentsUsage.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES}</span>
+              <span>{profile.free_messages_used || 0}/{profile.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES}</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
               <div 
@@ -288,7 +275,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                             <div key={persona.id} className="border rounded-lg p-4">
                               <div className="flex items-start gap-4">
                                 <img 
-                                  src={persona.image_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
+                                  src={persona.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
                                   alt={persona.name} 
                                   className="h-12 w-12 rounded-full"
                                 />
@@ -296,7 +283,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                                   <h3 className="font-medium text-left">{persona.name}</h3>
                                   <p className="text-sm text-gray-600 mt-1">{persona.description}</p>
                                   <div className="flex flex-wrap gap-2 mt-2">
-                                    {persona.traits.map((trait: string, index: number) => (
+                                    {persona.traits?.map((trait: string, index: number) => (
                                       <Badge key={index} variant="secondary">
                                         {trait}
                                       </Badge>
@@ -356,7 +343,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                           <div key={persona.id} className="border rounded-lg p-4">
                             <div className="flex items-start gap-4">
                               <img 
-                                src={persona.image_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
+                                src={persona.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${persona.name}`} 
                                 alt={persona.name} 
                                 className="h-12 w-12 rounded-full"
                               />
@@ -364,7 +351,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                                 <h3 className="font-medium text-left">{persona.name}</h3>
                                 <p className="text-sm text-gray-600 mt-1">{persona.description}</p>
                                 <div className="flex flex-wrap gap-2 mt-2">
-                                  {persona.traits.map((trait: string, index: number) => (
+                                  {persona.traits?.map((trait: string, index: number) => (
                                     <Badge key={index} variant="secondary">
                                       {trait}
                                     </Badge>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -6,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { usePersonaStore } from "@/store/personaStore";
 import { toast } from "@/components/ui/use-toast";
-import { createPersonaDeployment, PersonaDeploymentData, incrementAgentUsed, getUserAgentsUsage, incrementMessageUsed, PRICING_CONFIG } from '@/services/personaService';
+import { createPersonaDeployment, PersonaDeploymentData, incrementMessageUsage, PRICING_CONFIG } from '@/services/personaService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -27,7 +28,6 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
   const { personas, selectPersona, selectedPersonaId, getSelectedPersona, deselectPersona } = usePersonaStore();
   const { user, profile } = useAuth();
   const [isDeploying, setIsDeploying] = useState(false);
-  const [agentUsage, setAgentUsage] = useState<any>(null);
   
   // Form state with defaults
   const [customPrompt, setCustomPrompt] = useState('');
@@ -41,8 +41,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
   useEffect(() => {
     console.log('AgentConfigDrawer mounted');
     if (isOpen) {
-      console.log('Fetching agent usage');
-      fetchAgentUsage();
+      console.log('Drawer opened');
       
       // Reset form fields when drawer opens
       deselectPersona();
@@ -51,18 +50,6 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
       setCustomPrompt('');
     }
   }, [isOpen, user]);
-  
-  const fetchAgentUsage = async () => {
-    try {
-      if (user) {
-        const usageData = await getUserAgentsUsage();
-        console.log('Agent usage data:', usageData);
-        setAgentUsage(usageData);
-      }
-    } catch (error) {
-      console.error('Error fetching agents usage:', error);
-    }
-  };
 
   const handlePersonaSelect = (personaId: string) => {
     const persona = personas.find(p => p.id === personaId);
@@ -88,7 +75,10 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
     }
 
     // Check if user has enough messages
-    const remainingMessages = (agentUsage?.remaining_messages || 0) + PRICING_CONFIG.FREE_MESSAGES;
+    const messagesUsed = profile?.free_messages_used || 0;
+    const messagesQuota = profile?.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES;
+    const remainingMessages = messagesQuota - messagesUsed;
+    
     if (parseInt(messageCount) > remainingMessages) {
       toast({
         title: "Insufficient Messages",
@@ -129,7 +119,6 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
       // Create deployment in database
       if (user) {
         await createPersonaDeployment(deploymentData);
-        await incrementAgentUsed();
       }
       
       // Send config to parent for handling the actual deployment
@@ -254,7 +243,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
                 max="100"
               />
               <p className="text-xs text-gray-500">
-                Available messages: {agentUsage?.remaining_messages || 0}
+                Available messages: {(profile?.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES) - (profile?.free_messages_used || 0)}
               </p>
             </div>
           </div>

@@ -1,12 +1,9 @@
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/router';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 
 export default function AuthCallback() {
-  const router = useRouter();
-
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
@@ -20,7 +17,7 @@ export default function AuthCallback() {
             description: error.message || "An error occurred during authentication.",
             variant: "destructive",
           });
-          router.push('/');
+          window.location.href = '/';
           return;
         }
 
@@ -31,10 +28,10 @@ export default function AuthCallback() {
           });
           
           // Redirect to home page after successful authentication
-          router.push('/');
+          window.location.href = '/';
         } else {
           // No session, redirect to home
-          router.push('/');
+          window.location.href = '/';
         }
       } catch (error: any) {
         console.error('Auth callback error:', error);
@@ -43,12 +40,12 @@ export default function AuthCallback() {
           description: error.message || "An unexpected error occurred.",
           variant: "destructive",
         });
-        router.push('/');
+        window.location.href = '/';
       }
     };
 
     handleAuthCallback();
-  }, [router]);
+  }, []);
 
   return (
     <div className="flex items-center justify-center min-h-screen">

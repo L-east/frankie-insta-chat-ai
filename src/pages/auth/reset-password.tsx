@@ -1,93 +1,57 @@
 
-import { useState } from 'react';
-import { useRouter } from 'next/router';
-import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Loader } from 'lucide-react';
+import { useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
 
 export default function ResetPassword() {
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
-  const { updatePassword } = useAuth();
+  useEffect(() => {
+    const handlePasswordReset = async () => {
+      try {
+        // Handle the password reset callback
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Password reset error:', error);
+          toast({
+            title: "Password Reset Error",
+            description: error.message || "An error occurred during password reset.",
+            variant: "destructive",
+          });
+          window.location.href = '/';
+          return;
+        }
 
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (password !== confirmPassword) {
-      alert("Passwords don't match");
-      return;
-    }
+        if (data.session) {
+          toast({
+            title: "Password Reset Successful!",
+            description: "You can now set a new password.",
+          });
+          
+          // Redirect to settings or profile page
+          window.location.href = '/settings';
+        } else {
+          // No session, redirect to home
+          window.location.href = '/';
+        }
+      } catch (error: any) {
+        console.error('Password reset error:', error);
+        toast({
+          title: "Password Reset Error",
+          description: error.message || "An unexpected error occurred.",
+          variant: "destructive",
+        });
+        window.location.href = '/';
+      }
+    };
 
-    if (password.length < 6) {
-      alert("Password must be at least 6 characters long");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await updatePassword(password);
-      router.push('/');
-    } catch (error: any) {
-      console.error('Password reset error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    handlePasswordReset();
+  }, []);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
-      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-lg">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold">Reset Your Password</h1>
-          <p className="mt-2 text-gray-600">Please enter your new password below.</p>
-        </div>
-
-        <form onSubmit={handleResetPassword} className="mt-8 space-y-6">
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="password">New Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Enter your new password"
-                required
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="confirm-password">Confirm New Password</Label>
-              <Input
-                id="confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm your new password"
-                required
-              />
-            </div>
-          </div>
-
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader className="mr-2 h-4 w-4 animate-spin" />
-                Updating Password...
-              </>
-            ) : (
-              "Reset Password"
-            )}
-          </Button>
-        </form>
+      <div className="text-center">
+        <h1 className="text-2xl font-bold mb-4">Processing password reset...</h1>
+        <p>Please wait while we complete your password reset.</p>
       </div>
     </div>
   );

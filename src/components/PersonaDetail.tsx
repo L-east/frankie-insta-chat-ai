@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,10 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, Loader } from "lucide-react";
-import { Persona } from "@/store/personaStore";
+import { Persona } from "@/types/persona";
 import { useAuthStore } from "@/store/authStore";
 import { toast } from "@/components/ui/use-toast";
-import { createPersonaDeployment, incrementAgentUsed, incrementMessageUsed } from '@/services/personaService';
+import { createPersonaDeployment, incrementMessageUsage } from '@/services/personaService';
 
 interface PersonaDetailProps {
   persona: Persona;
@@ -56,21 +57,8 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
     try {
       // Check if user has enough messages
       if (user) {
-        const freeMessagesUsed = user.freeMessagesUsed || 0;
-        const freeMessagesQuota = user.freeMessagesQuota || 100;
-        
-        if (freeMessagesUsed >= freeMessagesQuota) {
-          toast({
-            title: "Message limit reached",
-            description: "You've used all your free messages. Please purchase more to continue.",
-            variant: "destructive"
-          });
-          setIsDeploying(false);
-          return;
-        }
-        
         // Increment message usage
-        await incrementMessageUsed();
+        await incrementMessageUsage();
       }
       
       // Convert time limit to minutes
@@ -91,7 +79,6 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
       // Create deployment in database if user is logged in
       if (user) {
         await createPersonaDeployment(deploymentData);
-        await incrementAgentUsed();
       }
       
       // Send message to content script to deploy agent
@@ -144,7 +131,7 @@ const PersonaDetail = ({ persona, onBack, onOpenAuth }: PersonaDetailProps) => {
           <div>
             <h2 className="text-xl font-bold">{persona.name}</h2>
             <div className="flex flex-wrap gap-1 mt-1">
-              {persona.tags.slice(0, 3).map((tag) => (
+              {persona.tags?.slice(0, 3).map((tag) => (
                 <Badge variant="outline" key={tag} className="text-xs">
                   {tag}
                 </Badge>

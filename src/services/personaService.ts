@@ -92,9 +92,6 @@ export const createPersonaDeployment = async (deploymentData: PersonaDeploymentD
     throw error;
   }
 
-  // Increment agent usage
-  await incrementAgentUsage();
-
   return data;
 };
 
@@ -118,24 +115,6 @@ export const getUserDeployments = async (): Promise<PersonaDeployment[]> => {
   }
 
   return data || [];
-};
-
-// Increment agent usage
-export const incrementAgentUsage = async (): Promise<void> => {
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    throw new Error("User must be authenticated to increment agent usage");
-  }
-
-  const { error } = await supabase.rpc('increment_agent_usage', { 
-    user_uuid: user.id 
-  });
-
-  if (error) {
-    console.error('Error incrementing agent usage:', error);
-    throw error;
-  }
 };
 
 // Increment message usage
@@ -175,7 +154,7 @@ export const addMessagesToQuota = async (messageCount: number): Promise<void> =>
   }
 };
 
-// Get user statistics
+// Get user statistics (removed agent tracking)
 export const getUserStats = async () => {
   const { data: { user } } = await supabase.auth.getUser();
   

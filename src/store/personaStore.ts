@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { Persona } from '@/types/persona';
 
@@ -20,10 +21,12 @@ export const usePersonaStore = create<PersonaState>((set, get) => ({
       attributes: ['romance', 'dating', 'flirty'],
       traits: ['romance', 'dating', 'flirty'],
       avatar_url: '/persona-avatars/casanova.jpg',
-      isPremium: false,
+      is_premium: false,
       perspective: '1st',
-      behaviorSnapshot: 'Romantic tone, flirty language, evolves into "partner"',
-      tags: ['romance', 'dating', 'flirty']
+      behavior_snapshot: 'Romantic tone, flirty language, evolves into "partner"',
+      tags: ['romance', 'dating', 'flirty'],
+      created_at: '',
+      updated_at: ''
     },
     {
       id: 'cleopatra',
@@ -32,10 +35,12 @@ export const usePersonaStore = create<PersonaState>((set, get) => ({
       attributes: ['power', 'royalty', 'seductive'],
       traits: ['power', 'royalty', 'seductive'],
       avatar_url: '/persona-avatars/cleopatra.jpg',
-      isPremium: false,
+      is_premium: false,
       perspective: '1st',
-      behaviorSnapshot: 'Powerful, confident, subtle seduction',
-      tags: ['power', 'royalty', 'seductive']
+      behavior_snapshot: 'Powerful, confident, subtle seduction',
+      tags: ['power', 'royalty', 'seductive'],
+      created_at: '',
+      updated_at: ''
     },
     {
       id: 'gentleman',
@@ -44,10 +49,12 @@ export const usePersonaStore = create<PersonaState>((set, get) => ({
       attributes: ['polite', 'refined', 'classy'],
       traits: ['polite', 'refined', 'classy'],
       avatar_url: '/persona-avatars/gentleman.jpg', 
-      isPremium: false,
+      is_premium: false,
       perspective: '1st',
-      behaviorSnapshot: 'Sophisticated language, courteous, refined',
-      tags: ['polite', 'refined', 'classy']
+      behavior_snapshot: 'Sophisticated language, courteous, refined',
+      tags: ['polite', 'refined', 'classy'],
+      created_at: '',
+      updated_at: ''
     },
     {
       id: 'funny-guy',
@@ -56,10 +63,12 @@ export const usePersonaStore = create<PersonaState>((set, get) => ({
       attributes: ['humor', 'entertainment', 'fun'],
       traits: ['humor', 'entertainment', 'fun'],
       avatar_url: '/persona-avatars/funny-guy.jpg',
-      isPremium: false,
+      is_premium: false,
       perspective: '1st',
-      behaviorSnapshot: 'Jokes, puns, light banter, one-liners for laughs',
-      tags: ['humor', 'entertainment', 'fun']
+      behavior_snapshot: 'Jokes, puns, light banter, one-liners for laughs',
+      tags: ['humor', 'entertainment', 'fun'],
+      created_at: '',
+      updated_at: ''
     },
     {
       id: 'icebreaker',
@@ -68,10 +77,12 @@ export const usePersonaStore = create<PersonaState>((set, get) => ({
       attributes: ['social', 'networking', 'dating'],
       traits: ['social', 'networking', 'dating'],
       avatar_url: '/persona-avatars/icebreaker.jpg',
-      isPremium: false,
+      is_premium: false,
       perspective: '1st',
-      behaviorSnapshot: 'Wing-man style openers, situational chat starters',
-      tags: ['social', 'networking', 'dating']
+      behavior_snapshot: 'Wing-man style openers, situational chat starters',
+      tags: ['social', 'networking', 'dating'],
+      created_at: '',
+      updated_at: ''
     }
   ],
   selectedPersonaId: null,

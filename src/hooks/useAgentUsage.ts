@@ -6,8 +6,6 @@ import { useAuth } from '@/contexts/AuthContext';
 interface AgentUsage {
   free_messages_remaining: number;
   total_messages_remaining: number;
-  free_agents_remaining: number;
-  is_pro: boolean;
 }
 
 export function useAgentUsage() {

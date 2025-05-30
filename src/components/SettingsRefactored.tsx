@@ -51,8 +51,6 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
 
   const messageQuota = profile?.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES;
   const messagesUsed = profile?.free_messages_used || 0;
-  const agentsUsed = profile?.free_agents_used || 0;
-  const agentsTotal = profile?.free_agents_total || 7;
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-y-auto">
@@ -115,23 +113,6 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
                 Expires {new Date(profile.free_messages_expiry).toLocaleDateString()}
               </div>
             )}
-          </div>
-
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium">Agents Deployed</span>
-              <span className="text-sm text-gray-600">
-                {agentsUsed} / {agentsTotal}
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-500 h-2 rounded-full" 
-                style={{ 
-                  width: `${Math.min(100, (agentsUsed / agentsTotal) * 100)}%` 
-                }}
-              ></div>
-            </div>
           </div>
 
           <div className="pt-4 border-t">
