@@ -1,6 +1,20 @@
 
 import { create } from 'zustand';
-import { Persona } from '@/types/persona';
+
+export interface Persona {
+  id: string;
+  name: string;
+  description: string;
+  attributes: string[];
+  traits: string[];
+  avatar_url: string;
+  is_premium: boolean;
+  perspective: string;
+  behavior_snapshot: string;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
 
 interface PersonaState {
   personas: Persona[];

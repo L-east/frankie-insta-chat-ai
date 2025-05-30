@@ -3,13 +3,13 @@ import { useState, useEffect } from 'react';
 import { getUserStats } from '@/services/personaService';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface AgentUsage {
+interface MessageUsage {
   free_messages_remaining: number;
   total_messages_remaining: number;
 }
 
 export function useAgentUsage() {
-  const [data, setData] = useState<AgentUsage | null>(null);
+  const [data, setData] = useState<MessageUsage | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
@@ -27,7 +27,7 @@ export function useAgentUsage() {
       setData(stats);
       setError(null);
     } catch (err: any) {
-      console.error('Error fetching agent usage:', err);
+      console.error('Error fetching message usage:', err);
       setError(err.message || 'Failed to fetch usage data');
     } finally {
       setIsLoading(false);

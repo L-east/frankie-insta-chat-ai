@@ -17,10 +17,6 @@ interface UserProfile {
   total_messages_pending: number;
   lifetime_messages_allocated: number;
   lifetime_messages_used: number;
-  free_agents_used: number;
-  free_agents_total: number;
-  free_expiry_date: string;
-  is_pro: boolean;
   created_at: string;
   updated_at: string;
 }

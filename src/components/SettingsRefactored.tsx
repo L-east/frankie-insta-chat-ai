@@ -155,7 +155,7 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
               <div>
                 <h3 className="font-medium mb-2">What are message credits?</h3>
                 <p className="text-sm text-gray-600">
-                  Message credits are used to power your AI agents. Each message sent by an agent consumes one credit.
+                  Message credits are used to power your AI personas. Each message sent by a persona consumes one credit.
                 </p>
               </div>
               <div>

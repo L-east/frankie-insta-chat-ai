@@ -154,7 +154,7 @@ export const addMessagesToQuota = async (messageCount: number): Promise<void> =>
   }
 };
 
-// Get user statistics (removed agent tracking)
+// Get user statistics (only message-related stats)
 export const getUserStats = async () => {
   const { data: { user } } = await supabase.auth.getUser();
   
