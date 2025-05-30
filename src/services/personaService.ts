@@ -1,5 +1,41 @@
+
 import { supabase } from "@/integrations/supabase/client";
-import { useAuthStore } from "@/store/authStore";
+
+export interface Persona {
+  id: string;
+  name: string;
+  description: string;
+  avatar_url?: string;
+  is_premium: boolean;
+  perspective: string;
+  behavior_snapshot?: string;
+  attributes?: string[];
+  traits?: string[];
+  tags?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PersonaDeployment {
+  id: string;
+  user_id: string;
+  persona_id: string;
+  scope: string;
+  mode: string;
+  custom_prompt?: string;
+  tone_strength: number;
+  flag_keywords?: string[];
+  flag_action: string;
+  time_limit?: number;
+  message_count?: number;
+  auto_stop: boolean;
+  status: string;
+  start_time: string;
+  last_activity_time: string;
+  messages_sent: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface PersonaDeploymentData {
   persona_id: string;
@@ -14,8 +50,24 @@ export interface PersonaDeploymentData {
   auto_stop?: boolean;
 }
 
-export const createPersonaDeployment = async (deploymentData: PersonaDeploymentData) => {
-  const user = useAuthStore.getState().getUser();
+// Fetch all personas
+export const getPersonas = async (): Promise<Persona[]> => {
+  const { data, error } = await supabase
+    .from('personas')
+    .select('*')
+    .order('name');
+
+  if (error) {
+    console.error('Error fetching personas:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+// Create a new persona deployment
+export const createPersonaDeployment = async (deploymentData: PersonaDeploymentData): Promise<PersonaDeployment> => {
+  const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
     throw new Error("User must be authenticated to create a persona deployment");
@@ -24,171 +76,174 @@ export const createPersonaDeployment = async (deploymentData: PersonaDeploymentD
   const dataWithUserId = {
     ...deploymentData,
     user_id: user.id,
-    flag_keywords: deploymentData.flag_keywords && deploymentData.flag_keywords.length > 0 
-      ? deploymentData.flag_keywords.join(',') 
-      : null
+    tone_strength: deploymentData.tone_strength || 5,
+    flag_action: deploymentData.flag_action || 'pause',
+    auto_stop: deploymentData.auto_stop !== false
   };
 
   const { data, error } = await supabase
-    .from('persona_deployments')
-    .insert(dataWithUserId);
+    .from('user_deployments')
+    .insert(dataWithUserId)
+    .select()
+    .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('Error creating deployment:', error);
+    throw error;
+  }
+
+  // Increment agent usage
+  await incrementAgentUsage();
+
   return data;
 };
 
-export const getUserDeployments = async () => {
-  const user = useAuthStore.getState().getUser();
+// Get user's deployments
+export const getUserDeployments = async (): Promise<PersonaDeployment[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
     throw new Error("User must be authenticated to get deployments");
   }
 
   const { data, error } = await supabase
-    .from('persona_deployments')
+    .from('user_deployments')
     .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
-  return data;
+  if (error) {
+    console.error('Error fetching deployments:', error);
+    throw error;
+  }
+
+  return data || [];
 };
 
-export const incrementAgentUsed = async () => {
-  const user = useAuthStore.getState().getUser();
+// Increment agent usage
+export const incrementAgentUsage = async (): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
     throw new Error("User must be authenticated to increment agent usage");
   }
 
-  const { error } = await supabase.rpc('increment_agents_used', { user_id: user.id });
+  const { error } = await supabase.rpc('increment_agent_usage', { 
+    user_uuid: user.id 
+  });
 
-  if (error) throw error;
-  return true;
+  if (error) {
+    console.error('Error incrementing agent usage:', error);
+    throw error;
+  }
 };
 
-export const incrementMessageUsed = async () => {
-  const { supabase } = await import('@/integrations/supabase/client');
+// Increment message usage
+export const incrementMessageUsage = async (): Promise<void> => {
   const { data: { user } } = await supabase.auth.getUser();
   
-  if (!user) throw new Error('User not authenticated');
-  
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-    
-  if (profileError) throw profileError;
-  
-  const updates = {
-    total_messages_used: (profile.total_messages_used || 0) + 1,
-    total_messages_pending: (profile.total_messages_pending || 0) - 1,
-    lifetime_messages_used: (profile.lifetime_messages_used || 0) + 1
-  };
-  
-  const { error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('id', user.id);
-    
-  if (error) throw error;
+  if (!user) {
+    throw new Error("User must be authenticated to increment message usage");
+  }
+
+  const { error } = await supabase.rpc('increment_message_usage', { 
+    user_uuid: user.id 
+  });
+
+  if (error) {
+    console.error('Error incrementing message usage:', error);
+    throw error;
+  }
 };
 
-export const addMessagesToQuota = async (messageCount: number) => {
-  const { supabase } = await import('@/integrations/supabase/client');
+// Add purchased messages to user's quota
+export const addMessagesToQuota = async (messageCount: number): Promise<void> => {
   const { data: { user } } = await supabase.auth.getUser();
   
-  if (!user) throw new Error('User not authenticated');
+  if (!user) {
+    throw new Error("User must be authenticated to add messages");
+  }
 
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
+  const { error } = await supabase.rpc('add_purchased_messages', { 
+    user_uuid: user.id,
+    message_count: messageCount
+  });
 
-  if (profileError) throw profileError;
+  if (error) {
+    console.error('Error adding messages to quota:', error);
+    throw error;
+  }
+};
+
+// Get user statistics
+export const getUserStats = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
   
-  const updates = {
-    total_messages_allocated: (profile.total_messages_allocated || 0) + messageCount,
-    total_messages_pending: (profile.total_messages_pending || 0) + messageCount,
-    lifetime_messages_allocated: (profile.lifetime_messages_allocated || 0) + messageCount
-  };
-  
+  if (!user) {
+    throw new Error("User must be authenticated to get stats");
+  }
+
+  const { data, error } = await supabase.rpc('get_user_stats', { 
+    user_uuid: user.id 
+  });
+
+  if (error) {
+    console.error('Error fetching user stats:', error);
+    throw error;
+  }
+
+  return data?.[0] || null;
+};
+
+// Get deployment history
+export const getDeploymentHistory = async (): Promise<PersonaDeployment[]> => {
+  return getUserDeployments();
+};
+
+// Update deployment status
+export const updateDeploymentStatus = async (deploymentId: string, status: string): Promise<void> => {
   const { error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('id', user.id);
+    .from('user_deployments')
+    .update({ 
+      status,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', deploymentId);
 
-  if (error) throw error;
-};
-
-export const getUserAgentsUsage = async () => {
-  const user = useAuthStore.getState().getUser();
-  
-  if (!user) {
-    throw new Error("User must be authenticated to get agent usage");
+  if (error) {
+    console.error('Error updating deployment status:', error);
+    throw error;
   }
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('free_agents_used, free_agents_total, free_expiry_date, free_messages_used, free_messages_quota, free_messages_expiry')
-    .eq('id', user.id)
-    .single();
-
-  if (error) throw error;
-  return data;
 };
 
-export const getDeploymentHistory = async () => {
-  const user = useAuthStore.getState().getUser();
-  
-  if (!user) {
-    throw new Error("User must be authenticated to get deployment history");
+// Delete deployment
+export const deleteDeployment = async (deploymentId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('user_deployments')
+    .delete()
+    .eq('id', deploymentId);
+
+  if (error) {
+    console.error('Error deleting deployment:', error);
+    throw error;
   }
-
-  const { data, error } = await supabase
-    .from('persona_deployments')
-    .select('*, persona_id')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data;
 };
 
-export const getUserTransactions = async () => {
-  const user = useAuthStore.getState().getUser();
-  
-  if (!user) {
-    throw new Error("User must be authenticated to get transactions");
-  }
-
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-  return data;
-};
-
+// Message packages configuration
 export interface MessagePackage {
   count: number;
   price: number;
 }
 
-// Configurable pricing parameters
 export const PRICING_CONFIG = {
   FREE_MESSAGES: 10,
-  MESSAGE_PRICE_CENTS: 10, // 10 cents per message
+  MESSAGE_PRICE_CENTS: 10,
   MESSAGE_VALIDITY_DAYS: 30,
   PACKAGES: [
-    { count: 100, price: 0.01 },
     { count: 10, price: 1.00 },
     { count: 50, price: 5.00 },
     { count: 100, price: 10.00 },
+    { count: 500, price: 45.00 },
   ] as MessagePackage[]
 };
 

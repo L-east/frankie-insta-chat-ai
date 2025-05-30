@@ -1,18 +1,22 @@
+
 import { useState, useEffect } from 'react';
-import { Persona } from '@/types/persona';
+import { getPersonas, Persona } from '@/services/personaService';
 
 export function usePersonas() {
   const [personas, setPersonas] = useState<Persona[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPersonas = async () => {
       try {
-        const response = await fetch('/api/personas');
-        const data = await response.json();
+        setIsLoading(true);
+        const data = await getPersonas();
         setPersonas(data);
-      } catch (error) {
-        console.error('Error fetching personas:', error);
+        setError(null);
+      } catch (err: any) {
+        console.error('Error fetching personas:', err);
+        setError(err.message || 'Failed to fetch personas');
       } finally {
         setIsLoading(false);
       }
@@ -21,5 +25,16 @@ export function usePersonas() {
     fetchPersonas();
   }, []);
 
-  return { personas, isLoading };
-} 
+  const refreshPersonas = async () => {
+    try {
+      const data = await getPersonas();
+      setPersonas(data);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error refreshing personas:', err);
+      setError(err.message || 'Failed to refresh personas');
+    }
+  };
+
+  return { personas, isLoading, error, refreshPersonas };
+}

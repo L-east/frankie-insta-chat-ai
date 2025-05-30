@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,40 +8,54 @@ export default function AuthCallback() {
   const router = useRouter();
 
   useEffect(() => {
-    const handleEmailConfirmation = async () => {
+    const handleAuthCallback = async () => {
       try {
-        const { error } = await supabase.auth.getSession();
+        // Handle the auth callback
+        const { data, error } = await supabase.auth.getSession();
         
         if (error) {
-          throw error;
+          console.error('Auth callback error:', error);
+          toast({
+            title: "Authentication Error",
+            description: error.message || "An error occurred during authentication.",
+            variant: "destructive",
+          });
+          router.push('/');
+          return;
         }
 
-        toast({
-          title: "Email confirmed!",
-          description: "Your email has been successfully confirmed. You can now use all features of Frankie AI.",
-        });
-
-        // Redirect to home page after successful confirmation
-        router.push('/');
+        if (data.session) {
+          toast({
+            title: "Authentication Successful!",
+            description: "You have been successfully authenticated.",
+          });
+          
+          // Redirect to home page after successful authentication
+          router.push('/');
+        } else {
+          // No session, redirect to home
+          router.push('/');
+        }
       } catch (error: any) {
+        console.error('Auth callback error:', error);
         toast({
-          title: "Error confirming email",
-          description: error.message || "An error occurred while confirming your email.",
+          title: "Authentication Error",
+          description: error.message || "An unexpected error occurred.",
           variant: "destructive",
         });
         router.push('/');
       }
     };
 
-    handleEmailConfirmation();
+    handleAuthCallback();
   }, [router]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="text-center">
-        <h1 className="text-2xl font-bold mb-4">Confirming your email...</h1>
-        <p>Please wait while we confirm your email address.</p>
+        <h1 className="text-2xl font-bold mb-4">Processing authentication...</h1>
+        <p>Please wait while we complete your authentication.</p>
       </div>
     </div>
   );
-} 
+}

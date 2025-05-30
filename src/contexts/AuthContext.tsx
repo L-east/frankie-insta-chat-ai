@@ -1,22 +1,42 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User, Provider } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
-import { emailTemplates } from '@/lib/emailTemplates';
-/// <reference types="chrome"/>
+
+interface UserProfile {
+  id: string;
+  email: string;
+  name?: string;
+  avatar_url?: string;
+  free_messages_quota: number;
+  free_messages_used: number;
+  free_messages_expiry: string;
+  total_messages_allocated: number;
+  total_messages_used: number;
+  total_messages_pending: number;
+  lifetime_messages_allocated: number;
+  lifetime_messages_used: number;
+  free_agents_used: number;
+  free_agents_total: number;
+  free_expiry_date: string;
+  is_pro: boolean;
+  created_at: string;
+  updated_at: string;
+}
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  profile: any | null;
+  profile: UserProfile | null;
   isLoading: boolean;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithSocialProvider: (provider: Provider) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  verifyConfirmationCode: (email: string, code: string) => Promise<void>;
-  verifyResetCode: (email: string, code: string, newPassword: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,35 +44,69 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<any | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Function to fetch user profile
+  const fetchUserProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
+      }
+
+      return data as UserProfile;
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      return null;
+    }
+  };
+
+  // Function to refresh profile data
+  const refreshProfile = async () => {
+    if (user) {
+      const profileData = await fetchUserProfile(user.id);
+      setProfile(profileData);
+    }
+  };
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
+      async (event, currentSession) => {
+        console.log('Auth state changed:', event, currentSession?.user?.email);
+        
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
-        // Defer Supabase calls with setTimeout to prevent deadlocks
+        // Handle profile fetching
         if (currentSession?.user) {
-          setTimeout(() => {
-            fetchUserProfile(currentSession.user.id);
+          setTimeout(async () => {
+            const profileData = await fetchUserProfile(currentSession.user.id);
+            setProfile(profileData);
+            setIsLoading(false);
           }, 0);
         } else {
           setProfile(null);
+          setIsLoading(false);
         }
         
-        if (event === 'SIGNED_IN') {
-          // Log login history
+        // Log login history
+        if (event === 'SIGNED_IN' && currentSession?.user) {
           setTimeout(async () => {
             try {
               await supabase
-                .from('login_history')
+                .from('login_tracking')
                 .insert({
-                  user_id: currentSession?.user.id,
+                  user_id: currentSession.user.id,
                   device_info: navigator.userAgent,
-                  ip_address: null // IP is captured server-side for privacy
+                  session_id: currentSession.access_token.substring(0, 10)
                 });
             } catch (error) {
               console.error('Error logging login history:', error);
@@ -67,11 +121,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         
-        setSession(initialSession);
-        setUser(initialSession?.user ?? null);
-        
         if (initialSession?.user) {
-          await fetchUserProfile(initialSession.user.id);
+          const profileData = await fetchUserProfile(initialSession.user.id);
+          setProfile(profileData);
         }
       } catch (error) {
         console.error('Error initializing auth:', error);
@@ -87,25 +139,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
-        throw error;
-      }
-
-      setProfile(data);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      setProfile(null);
-    }
-  };
-
   const signUp = async (email: string, password: string, name: string) => {
     setIsLoading(true);
     try {
@@ -116,7 +149,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             name
           },
-          emailRedirectTo: 'https://frankiealive.github.io'
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       });
 
@@ -124,27 +157,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw error;
       }
 
-      if (data.user) {
-        // Create profile with name
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            email: email,
-            name: name,
-            free_messages_quota: 10,
-            free_messages_used: 0
-          });
-
-        if (profileError) {
-          throw profileError;
-        }
-
-        toast({
-          title: "Account created!",
-          description: "Please check your email to confirm your account.",
-        });
-      }
+      toast({
+        title: "Account created!",
+        description: "Please check your email to confirm your account.",
+      });
     } catch (error: any) {
       toast({
         title: "Signup failed",
@@ -191,15 +207,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: window.location.origin
+          redirectTo: `${window.location.origin}/auth/callback`
         }
       });
 
       if (error) {
         throw error;
       }
-      
-      // No success toast here as the page will redirect to provider
     } catch (error: any) {
       toast({
         title: "Social login failed",
@@ -218,6 +232,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         throw error;
       }
+      
+      toast({
+        title: "Signed out",
+        description: "You've been successfully signed out.",
+      });
     } catch (error: any) {
       toast({
         title: "Sign out failed",
@@ -233,7 +252,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'https://frankiealive.github.io'
+        redirectTo: `${window.location.origin}/auth/reset-password`
       });
 
       if (error) {
@@ -256,55 +275,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const verifyConfirmationCode = async (email: string, code: string) => {
+  const updatePassword = async (password: string) => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.verifyOtp({
-        email,
-        token: code,
-        type: 'signup'
+      const { error } = await supabase.auth.updateUser({
+        password: password
       });
 
       if (error) {
         throw error;
-      }
-
-      toast({
-        title: "Email confirmed!",
-        description: "Your email has been successfully confirmed.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Verification failed",
-        description: error.message || "An error occurred while verifying your email.",
-        variant: "destructive",
-      });
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const verifyResetCode = async (email: string, code: string, newPassword: string) => {
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        email,
-        token: code,
-        type: 'recovery'
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Update the password
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: newPassword
-      });
-
-      if (updateError) {
-        throw updateError;
       }
 
       toast({
@@ -313,8 +292,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (error: any) {
       toast({
-        title: "Password reset failed",
-        description: error.message || "An error occurred while resetting your password.",
+        title: "Password update failed",
+        description: error.message || "An error occurred while updating your password.",
         variant: "destructive",
       });
       throw error;
@@ -333,8 +312,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithSocialProvider,
     signOut,
     resetPassword,
-    verifyConfirmationCode,
-    verifyResetCode
+    updatePassword,
+    refreshProfile
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

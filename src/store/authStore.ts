@@ -1,10 +1,9 @@
 
 import { create } from 'zustand';
-import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 
-// Define an extended user type that includes profile data
-export interface ExtendedUser extends User {
+interface ExtendedUser extends User {
   isPro?: boolean;
   freeAgentsUsed?: number;
   freeAgentsTotal?: number;
@@ -15,6 +14,8 @@ export interface ExtendedUser extends User {
 }
 
 interface AuthState {
+  user: ExtendedUser | null;
+  setUser: (user: ExtendedUser | null) => void;
   getUser: () => ExtendedUser | null;
   getProfile: () => any | null;
   isAuthenticated: () => boolean;
@@ -23,104 +24,71 @@ interface AuthState {
   signup: (email: string, password: string, name: string) => Promise<void>;
   logout: () => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
-  user: ExtendedUser | null; // Changed to ExtendedUser
 }
 
-export const useAuthStore = create<AuthState>((set, get) => {
-  // Get initial user state
-  let initialUser: ExtendedUser | null = null;
-  try {
-    const { user, profile } = useAuth();
-    initialUser = user ? {
-      ...user,
-      isPro: profile?.is_pro || false,
-      freeAgentsUsed: profile?.free_agents_used || 0,
-      freeAgentsTotal: profile?.free_agents_total || 7,
-      freeExpiryDate: profile?.free_expiry_date ? new Date(profile.free_expiry_date) : undefined,
-      freeMessagesUsed: profile?.free_messages_used || 0,
-      freeMessagesQuota: profile?.free_messages_quota || 100,
-      freeMessagesExpiry: profile?.free_messages_expiry ? new Date(profile.free_messages_expiry) : undefined
-    } : null;
-  } catch (error) {
-    console.error('Error accessing auth context:', error);
-    initialUser = null;
-  }
+export const useAuthStore = create<AuthState>((set, get) => ({
+  user: null,
+  
+  setUser: (user: ExtendedUser | null) => {
+    set({ user });
+  },
+  
+  getUser: () => {
+    return get().user;
+  },
 
-  return {
-    user: initialUser,
-    
-    getUser: () => {
-      try {
-        const { user, profile } = useAuth();
-        // Create an extended user with profile data
-        const extendedUser = user ? {
-          ...user,
-          isPro: profile?.is_pro || false,
-          freeAgentsUsed: profile?.free_agents_used || 0,
-          freeAgentsTotal: profile?.free_agents_total || 7,
-          freeExpiryDate: profile?.free_expiry_date ? new Date(profile.free_expiry_date) : undefined,
-          freeMessagesUsed: profile?.free_messages_used || 0,
-          freeMessagesQuota: profile?.free_messages_quota || 100,
-          freeMessagesExpiry: profile?.free_messages_expiry ? new Date(profile.free_messages_expiry) : undefined
-        } : null;
-        
-        // Update the store's user state
-        set({ user: extendedUser });
-        return extendedUser;
-      } catch (error) {
-        console.error('Error accessing auth context:', error);
-        return null;
-      }
-    },
+  getProfile: () => {
+    // This will be handled by the AuthContext
+    return null;
+  },
 
-    getProfile: () => {
-      try {
-        const { profile } = useAuth();
-        return profile;
-      } catch (error) {
-        console.error('Error accessing auth context:', error);
-        return null;
-      }
-    },
+  isAuthenticated: () => {
+    return !!get().user;
+  },
 
-    isAuthenticated: () => {
-      try {
-        const { session } = useAuth();
-        return !!session;
-      } catch (error) {
-        console.error('Error accessing auth context:', error);
-        return false;
-      }
-    },
-
-    isLoading: () => {
-      try {
-        const { isLoading } = useAuth();
-        return isLoading;
-      } catch (error) {
-        console.error('Error accessing auth context:', error);
-        return false;
-      }
-    },
+  isLoading: () => {
+    // This will be handled by the AuthContext
+    return false;
+  },
+  
+  login: async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     
-    login: async (email: string, password: string) => {
-      const { signIn } = useAuth();
-      await signIn(email, password);
-    },
+    if (error) throw error;
     
-    signup: async (email: string, password: string, name: string) => {
-      const { signUp } = useAuth();
-      await signUp(email, password, name);
-    },
-    
-    logout: async () => {
-      const { signOut } = useAuth();
-      await signOut();
-    },
-    
-    forgotPassword: async (email: string) => {
-      const { resetPassword } = useAuth();
-      await resetPassword(email);
+    if (data.user) {
+      set({ user: data.user as ExtendedUser });
     }
-  };
-});
+  },
+  
+  signup: async (email: string, password: string, name: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { name }
+      }
+    });
+    
+    if (error) throw error;
+    
+    if (data.user) {
+      set({ user: data.user as ExtendedUser });
+    }
+  },
+  
+  logout: async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    
+    set({ user: null });
+  },
+  
+  forgotPassword: async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    if (error) throw error;
+  }
+}));

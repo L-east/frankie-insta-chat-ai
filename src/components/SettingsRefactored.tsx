@@ -1,12 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, User, CreditCard, Settings as SettingsIcon, Mail, HelpCircle, ChevronDown } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import PaymentPage from './PaymentPage';
-import { getUserAgentsUsage } from '@/services/personaService';
-import { PRICING_CONFIG } from '@/services/personaService';
+import { getUserStats, PRICING_CONFIG } from '@/services/personaService';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 interface SettingsRefactoredProps {
@@ -14,39 +13,29 @@ interface SettingsRefactoredProps {
 }
 
 const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [currentView, setCurrentView] = useState<'main' | 'payment'>('main');
-  const [agentsUsage, setAgentsUsage] = useState<any>(null);
+  const [userStats, setUserStats] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
-      fetchAgentsUsage();
+      fetchUserStats();
     }
   }, [user]);
 
-  const fetchAgentsUsage = async () => {
+  const fetchUserStats = async () => {
     try {
-      const usageData = await getUserAgentsUsage();
-      setAgentsUsage(usageData);
+      const stats = await getUserStats();
+      setUserStats(stats);
     } catch (error) {
-      console.error('Error fetching agents usage:', error);
+      console.error('Error fetching user stats:', error);
     }
   };
 
   const handlePaymentSuccess = () => {
     setCurrentView('main');
-    fetchAgentsUsage(); // Refresh usage data
-  };
-
-  const getMessageQuotaInfo = () => {
-    if (!agentsUsage || !agentsUsage.free_messages_quota || !agentsUsage.free_messages_used) {
-      return null;
-    }
-
-    const percentage = (agentsUsage.free_messages_used / agentsUsage.free_messages_quota) * 100;
-    const daysLeft = Math.max(0, Math.ceil((new Date(agentsUsage.free_messages_expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24)) - Math.floor(Date.now() / (1000 * 60 * 60 * 24)));
-
-    return { percentage, daysLeft };
+    fetchUserStats();
+    refreshProfile();
   };
 
   if (currentView === 'payment') {
@@ -59,6 +48,11 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
       </div>
     );
   }
+
+  const messageQuota = profile?.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES;
+  const messagesUsed = profile?.free_messages_used || 0;
+  const agentsUsed = profile?.free_agents_used || 0;
+  const agentsTotal = profile?.free_agents_total || 7;
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-y-auto">
@@ -101,48 +95,44 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {agentsUsage && (
-            <>
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">Messages</span>
-                  <span className="text-sm text-gray-600">
-                    {agentsUsage.free_messages_used || 0} / {agentsUsage.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-frankiePurple h-2 rounded-full" 
-                    style={{ 
-                      width: `${Math.min(100, ((agentsUsage.free_messages_used || 0) / (agentsUsage.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES)) * 100)}%` 
-                    }}
-                  ></div>
-                </div>
-                {agentsUsage.free_messages_expiry && (
-                  <div className="text-xs text-gray-500 mt-1">
-                    Expires in {Math.max(0, Math.ceil((new Date(agentsUsage.free_messages_expiry).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))} days
-                  </div>
-                )}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium">Messages</span>
+              <span className="text-sm text-gray-600">
+                {messagesUsed} / {messageQuota}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-frankiePurple h-2 rounded-full" 
+                style={{ 
+                  width: `${Math.min(100, (messagesUsed / messageQuota) * 100)}%` 
+                }}
+              ></div>
+            </div>
+            {profile?.free_messages_expiry && (
+              <div className="text-xs text-gray-500 mt-1">
+                Expires {new Date(profile.free_messages_expiry).toLocaleDateString()}
               </div>
+            )}
+          </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">Agents Deployed</span>
-                  <span className="text-sm text-gray-600">
-                    {agentsUsage.free_agents_used || 0} / {agentsUsage.free_agents_total || 7}
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-500 h-2 rounded-full" 
-                    style={{ 
-                      width: `${Math.min(100, ((agentsUsage.free_agents_used || 0) / (agentsUsage.free_agents_total || 7)) * 100)}%` 
-                    }}
-                  ></div>
-                </div>
-              </div>
-            </>
-          )}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium">Agents Deployed</span>
+              <span className="text-sm text-gray-600">
+                {agentsUsed} / {agentsTotal}
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-500 h-2 rounded-full" 
+                style={{ 
+                  width: `${Math.min(100, (agentsUsed / agentsTotal) * 100)}%` 
+                }}
+              ></div>
+            </div>
+          </div>
 
           <div className="pt-4 border-t">
             <div className="mb-4">
@@ -164,27 +154,6 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
         </CardContent>
       </Card>
 
-      {/* Billing Section */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Billing</h2>
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-600">Messages Used</span>
-            <span className="text-sm font-medium">{agentsUsage?.free_messages_used || 0}/{agentsUsage?.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES}</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-1.5">
-            <div 
-              className="bg-frankiePurple h-1.5 rounded-full" 
-              style={{ width: `${getMessageQuotaInfo()?.percentage || 0}%` }}
-            ></div>
-          </div>
-          <div className="flex justify-between text-xs text-gray-500">
-            <span>Free messages reset in {getMessageQuotaInfo()?.daysLeft || 0} days</span>
-            <span>{getMessageQuotaInfo()?.percentage || 0}% used</span>
-          </div>
-        </div>
-      </div>
-
       {/* FAQ Section */}
       <Card>
         <CardHeader>
@@ -205,19 +174,13 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
               <div>
                 <h3 className="font-medium mb-2">What are message credits?</h3>
                 <p className="text-sm text-gray-600">
-                  Message credits are used to power your AI agents. Each message sent by an agent consumes one credit. You get {PRICING_CONFIG.FREE_MESSAGES} free messages every month, and can purchase additional credits as needed.
+                  Message credits are used to power your AI agents. Each message sent by an agent consumes one credit.
                 </p>
               </div>
               <div>
                 <h3 className="font-medium mb-2">How do I get more message credits?</h3>
                 <p className="text-sm text-gray-600">
-                  You can purchase additional message credits through our packages. Each package comes with a specific number of messages that never expire.
-                </p>
-              </div>
-              <div>
-                <h3 className="font-medium mb-2">Do message credits expire?</h3>
-                <p className="text-sm text-gray-600">
-                  Free monthly credits expire at the end of each month. Purchased message credits never expire and can be used anytime.
+                  You can purchase additional message credits through our packages. Each package comes with a specific number of messages.
                 </p>
               </div>
             </CollapsibleContent>
@@ -234,24 +197,10 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Collapsible>
-            <CollapsibleTrigger asChild>
-              <Button variant="outline" className="w-full justify-between">
-                Contact
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="pt-4">
-              <p className="text-sm text-gray-600">Need help? Reach out to us at:</p>
-              <p className="text-sm font-medium mt-2">alivefrankie@gmail.com</p>
-            </CollapsibleContent>
-          </Collapsible>
+          <p className="text-sm text-gray-600">Need help? Reach out to us at:</p>
+          <p className="text-sm font-medium mt-2">alivefrankie@gmail.com</p>
         </CardContent>
       </Card>
-
-      {/* Footer */}
-      <div className="mt-8 text-center text-sm text-gray-500">
-      </div>
     </div>
   );
 };
