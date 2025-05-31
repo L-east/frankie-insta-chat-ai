@@ -1,13 +1,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { toast } from "@/components/ui/use-toast";
-import { incrementMessageUsage } from '@/services/personaService';
+import { updateMessageUsage } from '@/services/messageTrackingService';
 import { useAuthStore } from '@/store/authStore';
 import Sidebar from './Sidebar';
 
 const ChatIntegration: React.FC = () => {
   const [currentChatData, setCurrentChatData] = useState<any>(null);
   const [isExtensionContext, setIsExtensionContext] = useState(false);
+  const [currentDeploymentId, setCurrentDeploymentId] = useState<string | null>(null);
   const { user } = useAuthStore();
   
   useEffect(() => {
@@ -30,6 +31,17 @@ const ChatIntegration: React.FC = () => {
       if (event.data.action === 'openFrankie') {
         window.location.href = 'https://www.instagram.com/direct/inbox/';
       }
+
+      // Handle message sent event from content script
+      if (event.data.action === 'messageSent' && currentDeploymentId) {
+        console.log('Message sent detected, updating usage');
+        try {
+          await updateMessageUsage(currentDeploymentId, 1);
+          console.log('Message usage updated successfully');
+        } catch (error) {
+          console.error('Failed to update message usage:', error);
+        }
+      }
     };
 
     window.addEventListener('message', handleMessage);
@@ -46,7 +58,7 @@ const ChatIntegration: React.FC = () => {
       window.removeEventListener('message', handleMessage);
       console.log("ChatIntegration: Message listener removed");
     };
-  }, []);
+  }, [currentDeploymentId]);
   
   const handleAgentDeploy = async (config: any) => {
     try {
@@ -73,20 +85,18 @@ const ChatIntegration: React.FC = () => {
         return;
       }
       
-      if (user) {
-        try {
-          await incrementMessageUsage();
-        } catch (error) {
-          console.warn('Failed to increment message usage:', error);
-        }
-      }
-      
       const enhancedConfig = {
         ...config,
         time_limit: timeLimit,
         message_count: messageCount,
         start_time: Date.now()
       };
+
+      // Store deployment ID for message tracking
+      if (config.deploymentId) {
+        setCurrentDeploymentId(config.deploymentId);
+        console.log('Set current deployment ID:', config.deploymentId);
+      }
       
       if (isExtensionContext && window.parent && window.parent !== window) {
         try {

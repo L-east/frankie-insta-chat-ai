@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { usePersonaStore } from "@/store/personaStore";
 import { toast } from "@/components/ui/use-toast";
-import { createPersonaDeployment, PersonaDeploymentData, getMessageCredits, checkSufficientCredits } from '@/services/personaService';
+import { createPersonaDeployment, PersonaDeploymentData, getMessageCredits } from '@/services/personaService';
+import { checkSufficientCredits } from '@/services/messageTrackingService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -59,6 +60,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
     try {
       const credits = await getMessageCredits();
       setMessageCredits(credits);
+      console.log('Message credits fetched:', credits);
     } catch (error) {
       console.error('Error fetching message credits:', error);
     }
@@ -103,9 +105,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
                 variant="link" 
                 className="p-0 h-auto text-primary"
                 onClick={() => {
-                  // Close drawer and navigate to billing
                   onClose();
-                  // Navigate to settings with billing tab
                   window.location.href = '/settings?tab=billing';
                 }}
               >
@@ -145,17 +145,24 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
       };
       
       // Create deployment in database
+      let deploymentId = null;
       if (user) {
-        await createPersonaDeployment(deploymentData);
+        console.log('Creating deployment in database:', deploymentData);
+        const deployment = await createPersonaDeployment(deploymentData);
+        deploymentId = deployment.id;
+        console.log('Deployment created with ID:', deploymentId);
+        
         // Refresh profile to update UI
         await refreshProfile();
+        await fetchMessageCredits(); // Refresh credits display
       }
       
       // Send config to parent for handling the actual deployment
       onDeploy({
         ...deploymentData,
         persona: selectedPersona,
-        chatData: chatData
+        chatData: chatData,
+        deploymentId: deploymentId // Pass deployment ID for tracking
       });
       
       toast({

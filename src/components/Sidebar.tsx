@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Settings, X, LogOut, Clock, User, MessageCircle, ChevronDown } from "lucide-react";
+import { Settings, X, LogOut, Clock, User, MessageCircle, ChevronDown, RefreshCw } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import { usePersonaStore } from "@/store/personaStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +10,7 @@ import PersonaDetail from './PersonaDetail';
 import SettingsRefactored from './SettingsRefactored';
 import Auth from './Auth';
 import AgentConfigDrawer from './AgentConfigDrawer';
+import TestMessageButton from './TestMessageButton';
 import { getMessageCredits, PRICING_CONFIG } from '@/services/personaService';
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
@@ -30,6 +31,8 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
   const [deploymentHistory, setDeploymentHistory] = useState<any[]>([]);
   const [showAgentConfig, setShowAgentConfig] = useState(false);
   const [messageCredits, setMessageCredits] = useState<any>(null);
+  const [currentDeploymentId, setCurrentDeploymentId] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { signOut } = useAuth();
   
   const isAuthenticated = !!user;
@@ -41,7 +44,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
     }
     
     // Always show personas tab by default
-      setActiveTab("personas");
+    setActiveTab("personas");
   }, [isAuthenticated, profile]);
 
   useEffect(() => {
@@ -63,6 +66,13 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
       
       if (error) throw error;
       setDeploymentHistory(data || []);
+      
+      // Set current deployment ID to the most recent active deployment
+      const activeDeployment = data?.find(d => d.status === 'active');
+      if (activeDeployment) {
+        setCurrentDeploymentId(activeDeployment.id);
+        console.log('Set current deployment ID from history:', activeDeployment.id);
+      }
     } catch (error) {
       console.error('Error fetching deployment history:', error);
     }
@@ -70,11 +80,25 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
 
   const fetchMessageCredits = async () => {
     try {
+      setIsRefreshing(true);
       const credits = await getMessageCredits();
       setMessageCredits(credits);
+      console.log('Message credits refreshed:', credits);
     } catch (error) {
       console.error('Error fetching message credits:', error);
+    } finally {
+      setIsRefreshing(false);
     }
+  };
+
+  const handleRefreshCredits = () => {
+    fetchMessageCredits();
+  };
+
+  const handleMessageSent = () => {
+    // Refresh credits and deployment history when a message is sent
+    fetchMessageCredits();
+    fetchDeploymentHistory();
   };
     
   const selectedPersona = getSelectedPersona();
@@ -93,6 +117,19 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
       case 'paused': return <span className="text-yellow-500">Paused</span>;
       default: return <span className="text-gray-500">{status}</span>;
     }
+  };
+
+  const handleDeploymentUpdate = (config: any) => {
+    if (config.deploymentId) {
+      setCurrentDeploymentId(config.deploymentId);
+      console.log('Updated current deployment ID:', config.deploymentId);
+    }
+    if (onDeploy) {
+      onDeploy(config);
+    }
+    // Refresh data after deployment
+    fetchDeploymentHistory();
+    fetchMessageCredits();
   };
 
   if (showAgentConfig && chatData && onDeploy) {
@@ -134,7 +171,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
             onClose();
           }}
           chatData={chatData}
-          onDeploy={onDeploy}
+          onDeploy={handleDeploymentUpdate}
         />
       </div>
     );
@@ -186,30 +223,51 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
           >
             <X size={18} />
           </Button>
-            </div>
         </div>
+      </div>
         
-        {/* Messages usage */}
-        {isAuthenticated && messageCredits && (
+      {/* Messages usage */}
+      {isAuthenticated && messageCredits && (
         <div className="p-4 border-b bg-white">
-            <div className="flex justify-between text-xs text-gray-600 mb-1">
-              <span>Messages Available:</span>
+          <div className="flex justify-between items-center text-xs text-gray-600 mb-1">
+            <span>Messages Available:</span>
+            <div className="flex items-center gap-1">
               <span>{messageCredits.totalAvailable}</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-1.5">
-              <div 
-                className="bg-frankiePurple h-1.5 rounded-full" 
-                style={{ 
-                  width: `${messageCredits.totalAvailable > 0 ? 100 : 0}%` 
-                }}
-              ></div>
-            </div>
-            <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>Free: {messageCredits.freeMessagesRemaining}</span>
-              <span>Paid: {messageCredits.paidMessagesRemaining}</span>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleRefreshCredits}
+                disabled={isRefreshing}
+                className="h-6 w-6 p-0"
+              >
+                <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </Button>
             </div>
           </div>
-        )}
+          <div className="w-full bg-gray-200 rounded-full h-1.5">
+            <div 
+              className="bg-frankiePurple h-1.5 rounded-full" 
+              style={{ 
+                width: `${messageCredits.totalAvailable > 0 ? 100 : 0}%` 
+              }}
+            ></div>
+          </div>
+          <div className="flex justify-between text-xs text-gray-500 mt-1">
+            <span>Free: {messageCredits.freeMessagesRemaining}</span>
+            <span>Paid: {messageCredits.paidMessagesRemaining}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Test Message Button (for authenticated users) */}
+      {isAuthenticated && currentDeploymentId && (
+        <div className="p-4 border-b bg-gray-50">
+          <TestMessageButton 
+            deploymentId={currentDeploymentId} 
+            onMessageSent={handleMessageSent}
+          />
+        </div>
+      )}
 
       {/* Main content */}
       <div className="flex-1 overflow-y-auto bg-white">
@@ -410,7 +468,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                           </CollapsibleContent>
                         </Collapsible>
                       </div>
-                          <MessageCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                      <MessageCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                       <p className="text-gray-500">No deployment history yet</p>
                       <p className="text-sm mt-1 text-gray-500">Deploy your first agent to see it here</p>
                     </div>
