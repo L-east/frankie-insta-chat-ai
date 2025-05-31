@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, User, CreditCard, Settings as SettingsIcon, Mail, HelpCircle, ChevronDown } from "lucide-react";
 import { useAuth } from '@/contexts/AuthContext';
 import PaymentPage from './PaymentPage';
-import { getUserStats, PRICING_CONFIG } from '@/services/personaService';
+import { getMessageCredits, PRICING_CONFIG } from '@/services/personaService';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
 interface SettingsRefactoredProps {
@@ -15,26 +15,26 @@ interface SettingsRefactoredProps {
 const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
   const { user, profile, refreshProfile } = useAuth();
   const [currentView, setCurrentView] = useState<'main' | 'payment'>('main');
-  const [userStats, setUserStats] = useState<any>(null);
+  const [messageCredits, setMessageCredits] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
-      fetchUserStats();
+      fetchMessageCredits();
     }
   }, [user]);
 
-  const fetchUserStats = async () => {
+  const fetchMessageCredits = async () => {
     try {
-      const stats = await getUserStats();
-      setUserStats(stats);
+      const credits = await getMessageCredits();
+      setMessageCredits(credits);
     } catch (error) {
-      console.error('Error fetching user stats:', error);
+      console.error('Error fetching message credits:', error);
     }
   };
 
   const handlePaymentSuccess = () => {
     setCurrentView('main');
-    fetchUserStats();
+    fetchMessageCredits();
     refreshProfile();
   };
 
@@ -48,9 +48,6 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
       </div>
     );
   }
-
-  const messageQuota = profile?.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES;
-  const messagesUsed = profile?.free_messages_used || 0;
 
   return (
     <div className="h-full flex flex-col space-y-6 overflow-y-auto">
@@ -89,31 +86,74 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <CreditCard className="h-5 w-5" />
-            Usage & Billing
+            Message Credits
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium">Messages</span>
-              <span className="text-sm text-gray-600">
-                {messagesUsed} / {messageQuota}
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-frankiePurple h-2 rounded-full" 
-                style={{ 
-                  width: `${Math.min(100, (messagesUsed / messageQuota) * 100)}%` 
-                }}
-              ></div>
-            </div>
-            {profile?.free_messages_expiry && (
-              <div className="text-xs text-gray-500 mt-1">
-                Expires {new Date(profile.free_messages_expiry).toLocaleDateString()}
+          {messageCredits && (
+            <>
+              {/* Free Messages */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">Free Messages</span>
+                  <span className="text-sm text-gray-600">
+                    {messageCredits.freeMessagesRemaining} / {PRICING_CONFIG.FREE_MESSAGES}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full" 
+                    style={{ 
+                      width: `${Math.min(100, (messageCredits.freeMessagesRemaining / PRICING_CONFIG.FREE_MESSAGES) * 100)}%` 
+                    }}
+                  ></div>
+                </div>
+                {messageCredits.profile?.free_messages_expiry && !messageCredits.freeExpired && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    Expires {new Date(messageCredits.profile.free_messages_expiry).toLocaleDateString()}
+                  </div>
+                )}
+                {messageCredits.freeExpired && (
+                  <div className="text-xs text-red-500 mt-1">
+                    Free messages expired
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+
+              {/* Purchased Messages */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">Purchased Messages</span>
+                  <span className="text-sm text-gray-600">
+                    {messageCredits.paidMessagesRemaining}
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-frankiePurple h-2 rounded-full" 
+                    style={{ 
+                      width: `${messageCredits.paidMessagesRemaining > 0 ? 100 : 0}%` 
+                    }}
+                  ></div>
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  No expiry on purchased messages
+                </div>
+              </div>
+
+              {/* Total Available */}
+              <div className="pt-2 border-t">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Total Available</span>
+                  <span className="font-medium text-lg">{messageCredits.totalAvailable}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm text-gray-600">
+                  <span>Total Used</span>
+                  <span>{messageCredits.totalUsed}</span>
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="pt-4 border-t">
             <div className="mb-4">
@@ -121,7 +161,8 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
               <div className="text-sm text-gray-600 space-y-1">
                 <div>• {PRICING_CONFIG.FREE_MESSAGES} free messages for new users</div>
                 <div>• {PRICING_CONFIG.MESSAGE_PRICE_CENTS}¢ per message after free quota</div>
-                <div>• Messages valid for {PRICING_CONFIG.MESSAGE_VALIDITY_DAYS} days</div>
+                <div>• Free messages expire in 30 days</div>
+                <div>• Purchased messages never expire</div>
               </div>
             </div>
             
@@ -156,6 +197,12 @@ const SettingsRefactored: React.FC<SettingsRefactoredProps> = ({ onBack }) => {
                 <h3 className="font-medium mb-2">What are message credits?</h3>
                 <p className="text-sm text-gray-600">
                   Message credits are used to power your AI personas. Each message sent by a persona consumes one credit.
+                </p>
+              </div>
+              <div>
+                <h3 className="font-medium mb-2">How do message credits work?</h3>
+                <p className="text-sm text-gray-600">
+                  You get 10 free messages that expire in 30 days. Free messages are used first, then purchased messages. Purchased messages never expire.
                 </p>
               </div>
               <div>

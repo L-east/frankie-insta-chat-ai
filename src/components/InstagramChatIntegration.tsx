@@ -1,6 +1,7 @@
+
 import React, { useEffect, useState } from 'react';
 import { toast } from "@/components/ui/use-toast";
-import { incrementMessageUsed } from '@/services/personaService';
+import { incrementMessageUsage } from '@/services/personaService';
 import { useAuthStore } from '@/store/authStore';
 import Sidebar from './Sidebar';
 
@@ -74,7 +75,7 @@ const InstagramChatIntegration: React.FC = () => {
       
       if (user) {
         try {
-          await incrementMessageUsed();
+          await incrementMessageUsage();
         } catch (error) {
           console.warn('Failed to increment message usage:', error);
         }

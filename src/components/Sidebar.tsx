@@ -10,7 +10,7 @@ import PersonaDetail from './PersonaDetail';
 import SettingsRefactored from './SettingsRefactored';
 import Auth from './Auth';
 import AgentConfigDrawer from './AgentConfigDrawer';
-import { PRICING_CONFIG } from '@/services/personaService';
+import { getMessageCredits, PRICING_CONFIG } from '@/services/personaService';
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 
@@ -29,6 +29,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
   const [activeTab, setActiveTab] = useState("personas");
   const [deploymentHistory, setDeploymentHistory] = useState<any[]>([]);
   const [showAgentConfig, setShowAgentConfig] = useState(false);
+  const [messageCredits, setMessageCredits] = useState<any>(null);
   const { signOut } = useAuth();
   
   const isAuthenticated = !!user;
@@ -36,6 +37,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchDeploymentHistory();
+      fetchMessageCredits();
     }
     
     // Always show personas tab by default
@@ -65,6 +67,15 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
       console.error('Error fetching deployment history:', error);
     }
   };
+
+  const fetchMessageCredits = async () => {
+    try {
+      const credits = await getMessageCredits();
+      setMessageCredits(credits);
+    } catch (error) {
+      console.error('Error fetching message credits:', error);
+    }
+  };
     
   const selectedPersona = getSelectedPersona();
   
@@ -82,30 +93,6 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
       case 'paused': return <span className="text-yellow-500">Paused</span>;
       default: return <span className="text-gray-500">{status}</span>;
     }
-  };
-
-  const getMessageQuotaInfo = () => {
-    if (!profile) return null;
-    
-    const messagesUsed = profile.free_messages_used || 0;
-    const messagesQuota = profile.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES;
-    const expiryDate = profile.free_messages_expiry 
-      ? new Date(profile.free_messages_expiry) 
-      : null;
-    
-    const daysLeft = expiryDate 
-      ? Math.max(0, Math.ceil((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
-      : 0;
-    
-    const percentage = Math.min(100, Math.round((messagesUsed / messagesQuota) * 100));
-    
-    return {
-      messagesUsed,
-      messagesQuota,
-      expiryDate,
-      daysLeft,
-      percentage
-    };
   };
 
   if (showAgentConfig && chatData && onDeploy) {
@@ -203,19 +190,23 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
         </div>
         
         {/* Messages usage */}
-        {isAuthenticated && profile && (
+        {isAuthenticated && messageCredits && (
         <div className="p-4 border-b bg-white">
-            <div className="flex justify-between text-xs text-gray-600">
-              <span>Messages:</span>
-              <span>{profile.free_messages_used || 0}/{profile.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES}</span>
+            <div className="flex justify-between text-xs text-gray-600 mb-1">
+              <span>Messages Available:</span>
+              <span>{messageCredits.totalAvailable}</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+            <div className="w-full bg-gray-200 rounded-full h-1.5">
               <div 
                 className="bg-frankiePurple h-1.5 rounded-full" 
                 style={{ 
-                  width: `${getMessageQuotaInfo()?.percentage || 0}%` 
+                  width: `${messageCredits.totalAvailable > 0 ? 100 : 0}%` 
                 }}
               ></div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>Free: {messageCredits.freeMessagesRemaining}</span>
+              <span>Paid: {messageCredits.paidMessagesRemaining}</span>
             </div>
           </div>
         )}
@@ -392,7 +383,7 @@ const Sidebar = ({ isOpen, onClose, chatData, onDeploy }: SidebarProps) => {
                               </div>
                               <div className="text-right text-sm">
                                 <div>Messages: {deployment.messages_sent || 0}/{deployment.message_count || 'N/A'}</div>
-                                <div>Pending: {deployment.message_count - (deployment.messages_sent || 0)}</div>
+                                <div>Pending: {(deployment.message_count || 0) - (deployment.messages_sent || 0)}</div>
                                 <div>Mode: {deployment.mode}</div>
                               </div>
                             </div>

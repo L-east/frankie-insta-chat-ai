@@ -50,6 +50,23 @@ export interface PersonaDeploymentData {
   auto_stop?: boolean;
 }
 
+export interface UserProfile {
+  id: string;
+  email: string;
+  name?: string;
+  avatar_url?: string;
+  free_messages_quota: number;
+  free_messages_used: number;
+  free_messages_expiry: string;
+  total_messages_allocated: number;
+  total_messages_used: number;
+  total_messages_pending: number;
+  lifetime_messages_allocated: number;
+  lifetime_messages_used: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // Fetch all personas
 export const getPersonas = async (): Promise<Persona[]> => {
   const { data, error } = await supabase
@@ -65,12 +82,86 @@ export const getPersonas = async (): Promise<Persona[]> => {
   return data || [];
 };
 
-// Create a new persona deployment
+// Get user profile with message credits
+export const getUserProfile = async (): Promise<UserProfile | null> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error("User must be authenticated");
+  }
+
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', user.id)
+    .single();
+
+  if (error) {
+    console.error('Error fetching user profile:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+// Check if user has sufficient credits for deployment
+export const checkSufficientCredits = async (messageCount: number): Promise<boolean> => {
+  const profile = await getUserProfile();
+  if (!profile) return false;
+
+  const freeMessagesRemaining = Math.max(0, profile.free_messages_quota - profile.free_messages_used);
+  const paidMessagesRemaining = profile.total_messages_pending;
+  const totalAvailable = freeMessagesRemaining + paidMessagesRemaining;
+
+  return totalAvailable >= messageCount;
+};
+
+// Get available message credits breakdown
+export const getMessageCredits = async () => {
+  const profile = await getUserProfile();
+  if (!profile) {
+    return {
+      freeMessagesRemaining: 0,
+      paidMessagesRemaining: 0,
+      totalAvailable: 0,
+      totalUsed: 0,
+      freeExpired: false
+    };
+  }
+
+  const now = new Date();
+  const expiryDate = new Date(profile.free_messages_expiry);
+  const freeExpired = now > expiryDate;
+  
+  const freeMessagesRemaining = freeExpired ? 0 : Math.max(0, profile.free_messages_quota - profile.free_messages_used);
+  const paidMessagesRemaining = profile.total_messages_pending;
+  const totalAvailable = freeMessagesRemaining + paidMessagesRemaining;
+  const totalUsed = profile.free_messages_used + profile.total_messages_used;
+
+  return {
+    freeMessagesRemaining,
+    paidMessagesRemaining,
+    totalAvailable,
+    totalUsed,
+    freeExpired,
+    profile
+  };
+};
+
+// Create a new persona deployment with credit check
 export const createPersonaDeployment = async (deploymentData: PersonaDeploymentData): Promise<PersonaDeployment> => {
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
     throw new Error("User must be authenticated to create a persona deployment");
+  }
+
+  const messageCount = deploymentData.message_count || 1;
+
+  // Check if user has sufficient credits
+  const hasSufficientCredits = await checkSufficientCredits(messageCount);
+  if (!hasSufficientCredits) {
+    throw new Error("Insufficient message credits. Please purchase more messages.");
   }
 
   const dataWithUserId = {
@@ -95,29 +186,69 @@ export const createPersonaDeployment = async (deploymentData: PersonaDeploymentD
   return data;
 };
 
-// Get user's deployments
-export const getUserDeployments = async (): Promise<PersonaDeployment[]> => {
+// Update message usage when a message is sent
+export const updateMessageUsage = async (deploymentId: string, messagesSent: number = 1): Promise<void> => {
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {
-    throw new Error("User must be authenticated to get deployments");
+    throw new Error("User must be authenticated");
   }
 
-  const { data, error } = await supabase
+  // Get current profile to determine which credits to use
+  const profile = await getUserProfile();
+  if (!profile) {
+    throw new Error("User profile not found");
+  }
+
+  const now = new Date();
+  const expiryDate = new Date(profile.free_messages_expiry);
+  const freeExpired = now > expiryDate;
+  
+  let freeMessagesToUse = 0;
+  let paidMessagesToUse = 0;
+
+  if (!freeExpired) {
+    const freeMessagesRemaining = Math.max(0, profile.free_messages_quota - profile.free_messages_used);
+    freeMessagesToUse = Math.min(messagesSent, freeMessagesRemaining);
+    paidMessagesToUse = messagesSent - freeMessagesToUse;
+  } else {
+    paidMessagesToUse = messagesSent;
+  }
+
+  // Update user profile
+  const { error: profileError } = await supabase
+    .from('user_profiles')
+    .update({
+      free_messages_used: profile.free_messages_used + freeMessagesToUse,
+      total_messages_used: profile.total_messages_used + paidMessagesToUse,
+      total_messages_pending: profile.total_messages_pending - paidMessagesToUse,
+      lifetime_messages_used: profile.lifetime_messages_used + messagesSent,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', user.id);
+
+  if (profileError) {
+    console.error('Error updating user profile:', profileError);
+    throw profileError;
+  }
+
+  // Update deployment
+  const { error: deploymentError } = await supabase
     .from('user_deployments')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
+    .update({
+      messages_sent: messagesSent,
+      last_activity_time: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', deploymentId);
 
-  if (error) {
-    console.error('Error fetching deployments:', error);
-    throw error;
+  if (deploymentError) {
+    console.error('Error updating deployment:', deploymentError);
+    throw deploymentError;
   }
-
-  return data || [];
 };
 
-// Increment message usage
+// Legacy function for backward compatibility
 export const incrementMessageUsage = async (): Promise<void> => {
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -154,7 +285,7 @@ export const addMessagesToQuota = async (messageCount: number): Promise<void> =>
   }
 };
 
-// Get user statistics (only message-related stats)
+// Get user statistics (message-related stats)
 export const getUserStats = async () => {
   const { data: { user } } = await supabase.auth.getUser();
   
@@ -172,6 +303,28 @@ export const getUserStats = async () => {
   }
 
   return data?.[0] || null;
+};
+
+// Get user's deployments
+export const getUserDeployments = async (): Promise<PersonaDeployment[]> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error("User must be authenticated to get deployments");
+  }
+
+  const { data, error } = await supabase
+    .from('user_deployments')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching deployments:', error);
+    throw error;
+  }
+
+  return data || [];
 };
 
 // Get deployment history
@@ -217,7 +370,6 @@ export interface MessagePackage {
 export const PRICING_CONFIG = {
   FREE_MESSAGES: 10,
   MESSAGE_PRICE_CENTS: 10,
-  MESSAGE_VALIDITY_DAYS: 30,
   PACKAGES: [
     { count: 10, price: 1.00 },
     { count: 50, price: 5.00 },
@@ -228,4 +380,3 @@ export const PRICING_CONFIG = {
 
 export const MESSAGE_PACKAGES: MessagePackage[] = PRICING_CONFIG.PACKAGES;
 export const FREE_MESSAGES = PRICING_CONFIG.FREE_MESSAGES;
-export const MESSAGE_EXPIRY_DAYS = PRICING_CONFIG.MESSAGE_VALIDITY_DAYS;

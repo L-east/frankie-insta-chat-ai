@@ -1,11 +1,15 @@
 
 import { useState, useEffect } from 'react';
-import { getUserStats } from '@/services/personaService';
+import { getMessageCredits } from '@/services/personaService';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface MessageUsage {
-  free_messages_remaining: number;
-  total_messages_remaining: number;
+  freeMessagesRemaining: number;
+  paidMessagesRemaining: number;
+  totalAvailable: number;
+  totalUsed: number;
+  freeExpired: boolean;
+  profile?: any;
 }
 
 export function useAgentUsage() {
@@ -23,8 +27,8 @@ export function useAgentUsage() {
 
     try {
       setIsLoading(true);
-      const stats = await getUserStats();
-      setData(stats);
+      const credits = await getMessageCredits();
+      setData(credits);
       setError(null);
     } catch (err: any) {
       console.error('Error fetching message usage:', err);

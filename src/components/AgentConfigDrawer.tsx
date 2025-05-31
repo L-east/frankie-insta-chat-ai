@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { usePersonaStore } from "@/store/personaStore";
 import { toast } from "@/components/ui/use-toast";
-import { createPersonaDeployment, PersonaDeploymentData, incrementMessageUsage, PRICING_CONFIG } from '@/services/personaService';
+import { createPersonaDeployment, PersonaDeploymentData, getMessageCredits, checkSufficientCredits } from '@/services/personaService';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,8 +26,9 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
   onDeploy
 }) => {
   const { personas, selectPersona, selectedPersonaId, getSelectedPersona, deselectPersona } = usePersonaStore();
-  const { user, profile } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const [isDeploying, setIsDeploying] = useState(false);
+  const [messageCredits, setMessageCredits] = useState<any>(null);
   
   // Form state with defaults
   const [customPrompt, setCustomPrompt] = useState('');
@@ -48,8 +49,20 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
       setTimeLimit('60');
       setMessageCount('1');
       setCustomPrompt('');
+      
+      // Fetch message credits
+      fetchMessageCredits();
     }
   }, [isOpen, user]);
+
+  const fetchMessageCredits = async () => {
+    try {
+      const credits = await getMessageCredits();
+      setMessageCredits(credits);
+    } catch (error) {
+      console.error('Error fetching message credits:', error);
+    }
+  };
 
   const handlePersonaSelect = (personaId: string) => {
     const persona = personas.find(p => p.id === personaId);
@@ -74,26 +87,41 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
       return;
     }
 
+    const requestedMessages = parseInt(messageCount);
+
     // Check if user has enough messages
-    const messagesUsed = profile?.free_messages_used || 0;
-    const messagesQuota = profile?.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES;
-    const remainingMessages = messagesQuota - messagesUsed;
-    
-    if (parseInt(messageCount) > remainingMessages) {
+    try {
+      const hasSufficientCredits = await checkSufficientCredits(requestedMessages);
+      
+      if (!hasSufficientCredits) {
+        toast({
+          title: "Insufficient Messages",
+          description: (
+            <div className="flex flex-col gap-2">
+              <p>You don't have enough messages for this deployment.</p>
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-primary"
+                onClick={() => {
+                  // Close drawer and navigate to billing
+                  onClose();
+                  // Navigate to settings with billing tab
+                  window.location.href = '/settings?tab=billing';
+                }}
+              >
+                Buy more messages
+              </Button>
+            </div>
+          ),
+          variant: "destructive"
+        });
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking sufficient credits:', error);
       toast({
-        title: "Insufficient Messages",
-        description: (
-          <div className="flex flex-col gap-2">
-            <p>You don't have enough messages for this deployment.</p>
-            <Button 
-              variant="link" 
-              className="p-0 h-auto text-primary"
-              onClick={() => window.location.href = '/settings?tab=billing'}
-            >
-              Buy more messages
-            </Button>
-          </div>
-        ),
+        title: "Error",
+        description: "Failed to check message credits. Please try again.",
         variant: "destructive"
       });
       return;
@@ -112,13 +140,15 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
         flag_keywords: [],
         flag_action: 'pause',
         time_limit: parseInt(timeLimit),
-        message_count: parseInt(messageCount),
+        message_count: requestedMessages,
         auto_stop: true
       };
       
       // Create deployment in database
       if (user) {
         await createPersonaDeployment(deploymentData);
+        // Refresh profile to update UI
+        await refreshProfile();
       }
       
       // Send config to parent for handling the actual deployment
@@ -136,11 +166,35 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
       onClose();
     } catch (error) {
       console.error('Error deploying agent:', error);
-      toast({
-        title: "Deployment failed",
-        description: "There was an error deploying your agent. Please try again.",
-        variant: "destructive"
-      });
+      const errorMessage = error instanceof Error ? error.message : "There was an error deploying your agent. Please try again.";
+      
+      if (errorMessage.includes("Insufficient message credits")) {
+        toast({
+          title: "Insufficient Messages",
+          description: (
+            <div className="flex flex-col gap-2">
+              <p>You don't have enough messages for this deployment.</p>
+              <Button 
+                variant="link" 
+                className="p-0 h-auto text-primary"
+                onClick={() => {
+                  onClose();
+                  window.location.href = '/settings?tab=billing';
+                }}
+              >
+                Buy more messages
+              </Button>
+            </div>
+          ),
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Deployment failed",
+          description: errorMessage,
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsDeploying(false);
     }
@@ -179,6 +233,27 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
       
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-4 pb-20">
+        {/* Message Credits Display */}
+        {messageCredits && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="text-sm font-medium mb-2">Available Messages</h3>
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span>Free messages:</span>
+                <span>{messageCredits.freeMessagesRemaining}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Purchased messages:</span>
+                <span>{messageCredits.paidMessagesRemaining}</span>
+              </div>
+              <div className="flex justify-between font-medium border-t pt-1">
+                <span>Total available:</span>
+                <span>{messageCredits.totalAvailable}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Persona selection */}
         <div className="mb-6">
           <h3 className="text-lg font-medium mb-3">Select Persona</h3>
@@ -243,7 +318,7 @@ const AgentConfigDrawer: React.FC<AgentConfigDrawerProps> = ({
                 max="100"
               />
               <p className="text-xs text-gray-500">
-                Available messages: {(profile?.free_messages_quota || PRICING_CONFIG.FREE_MESSAGES) - (profile?.free_messages_used || 0)}
+                Available messages: {messageCredits?.totalAvailable || 0}
               </p>
             </div>
           </div>
